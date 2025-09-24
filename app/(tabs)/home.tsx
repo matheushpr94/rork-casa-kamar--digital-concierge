@@ -7,41 +7,66 @@ import {
   StyleSheet,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
 import { 
   Sparkles, 
-  ChefHat, 
-  Car, 
-  Shirt, 
-  Utensils, 
-  ShoppingCart 
+  ShoppingBag, 
+  FileText, 
+  ChefHat,
+  Utensils,
+  ArrowRight,
 } from 'lucide-react-native';
-import { getServices } from '@/lib/api';
 import { useBooking } from '@/contexts/booking-context';
 import { Card } from '@/components/ui/Card';
-import { SkeletonItemList } from '@/components/ui/SkeletonItemList';
-import { EmptyState } from '@/components/ui/EmptyState';
-import type { Service } from '@/types/api';
+import { Button } from '@/components/ui/Button';
 
-const serviceIcons = {
-  cleaning: Sparkles,
-  kitchen: ChefHat,
-  transport: Car,
-  laundry: Shirt,
-  dining: Utensils,
-  shopping: ShoppingCart,
-};
+const quickActions = [
+  {
+    id: 'services',
+    title: 'Serviços',
+    subtitle: 'Solicite limpeza, transporte e mais',
+    icon: Sparkles,
+    route: '/services',
+    color: '#2563eb',
+  },
+  {
+    id: 'orders',
+    title: 'Minhas Solicitações',
+    subtitle: 'Acompanhe seus pedidos',
+    icon: ShoppingBag,
+    route: '/orders',
+    color: '#10b981',
+  },
+  {
+    id: 'manual',
+    title: 'House Manual',
+    subtitle: 'Guia da propriedade',
+    icon: FileText,
+    route: '/manual',
+    color: '#f59e0b',
+  },
+  {
+    id: 'menu',
+    title: 'Cardápio',
+    subtitle: 'Explore opções gastronômicas',
+    icon: ChefHat,
+    route: '/menu',
+    color: '#8b5cf6',
+  },
+  {
+    id: 'meals',
+    title: 'Refeições Inclusas',
+    subtitle: 'Gerencie suas refeições',
+    icon: Utensils,
+    route: '/meals',
+    color: '#ef4444',
+  },
+];
 
-export default function ServicesScreen() {
+export default function HomeScreen() {
   const { bookingData } = useBooking();
-  const { data: services, isLoading } = useQuery({
-    queryKey: ['services'],
-    queryFn: getServices,
-  });
 
-  const handleServicePress = (service: Service) => {
-    if (!service?.id?.trim()) return;
-    router.push(`/service/${service.id}`);
+  const handleActionPress = (route: string) => {
+    router.push(route as any);
   };
 
   if (!bookingData) {
@@ -60,42 +85,47 @@ export default function ServicesScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.servicesGrid}>
-          {isLoading ? (
-            <SkeletonItemList count={6} />
-          ) : services && services.length > 0 ? (
-            services.map((service) => {
-              const IconComponent = serviceIcons[service.category as keyof typeof serviceIcons] || Sparkles;
-              
-              return (
-                <TouchableOpacity
-                  key={service.id}
-                  onPress={() => handleServicePress(service)}
-                  testID={`service-${service.id}`}
-                >
-                  <Card style={styles.serviceCard}>
-                    <View style={styles.serviceIcon}>
-                      <IconComponent size={24} color="#2563eb" />
+        <View style={styles.quickActions}>
+          {quickActions.map((action) => {
+            const IconComponent = action.icon;
+            
+            return (
+              <TouchableOpacity
+                key={action.id}
+                onPress={() => handleActionPress(action.route)}
+                testID={`action-${action.id}`}
+              >
+                <Card style={styles.actionCard}>
+                  <View style={styles.actionContent}>
+                    <View style={[styles.actionIcon, { backgroundColor: `${action.color}15` }]}>
+                      <IconComponent size={24} color={action.color} />
                     </View>
-                    <Text style={styles.serviceName}>{service.name}</Text>
-                    <Text style={styles.servicePrice}>
-                      R$ {service.price.toFixed(2)}
-                      {service.unit && ` / ${service.unit}`}
-                    </Text>
-                    <Text style={styles.serviceDescription} numberOfLines={2}>
-                      {service.description}
-                    </Text>
-                  </Card>
-                </TouchableOpacity>
-              );
-            })
-          ) : (
-            <EmptyState
-              title="Nenhum serviço disponível"
-              subtitle="Os serviços aparecerão aqui quando estiverem disponíveis"
-              icon={<Sparkles size={48} color="#6b7280" />}
+                    <View style={styles.actionText}>
+                      <Text style={styles.actionTitle}>{action.title}</Text>
+                      <Text style={styles.actionSubtitle}>{action.subtitle}</Text>
+                    </View>
+                    <ArrowRight size={20} color="#9ca3af" />
+                  </View>
+                </Card>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={styles.welcomeSection}>
+          <Card style={styles.welcomeCard}>
+            <Text style={styles.welcomeTitle}>Bem-vindo à sua estadia!</Text>
+            <Text style={styles.welcomeText}>
+              Estamos aqui para tornar sua experiência inesquecível. 
+              Use os serviços disponíveis ou consulte o manual da propriedade para mais informações.
+            </Text>
+            <Button
+              title="Ver Serviços Disponíveis"
+              onPress={() => handleActionPress('/services')}
+              variant="primary"
+              style={styles.welcomeButton}
             />
-          )}
+          </Card>
         </View>
       </ScrollView>
     </View>
@@ -110,7 +140,6 @@ const styles = StyleSheet.create({
   header: {
     padding: 24,
     paddingBottom: 16,
-    paddingTop: 16,
   },
   greeting: {
     fontSize: 24,
@@ -125,38 +154,62 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  servicesGrid: {
+  quickActions: {
     padding: 16,
-    gap: 16,
+    gap: 12,
   },
-  serviceCard: {
-    marginBottom: 16,
+  actionCard: {
+    marginBottom: 4,
   },
-  serviceIcon: {
+  actionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 4,
+  },
+  actionIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#eff6ff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginRight: 16,
   },
-  serviceName: {
-    fontSize: 18,
+  actionText: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#1e293b',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  servicePrice: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#10b981',
+  actionSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  welcomeSection: {
+    padding: 16,
+    paddingTop: 8,
+  },
+  welcomeCard: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  welcomeTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1e293b',
     marginBottom: 8,
   },
-  serviceDescription: {
+  welcomeText: {
     fontSize: 14,
     color: '#64748b',
     lineHeight: 20,
+    marginBottom: 16,
+  },
+  welcomeButton: {
+    marginTop: 8,
   },
   loadingText: {
     textAlign: 'center',

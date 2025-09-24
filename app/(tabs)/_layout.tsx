@@ -11,7 +11,7 @@ import {
   Alert,
 } from "react-native";
 import { router } from "expo-router";
-import { Home, ShoppingBag, FileText, Utensils, ChefHat, User, LogOut } from "lucide-react-native";
+import { Home, ShoppingBag, FileText, Utensils, ChefHat, User, LogOut, Sparkles } from "lucide-react-native";
 import { LocalStorage } from "@/lib/storage";
 import * as Haptics from 'expo-haptics';
 
@@ -100,14 +100,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          title: "Serviços",
+          title: "Home",
           tabBarIcon: ({ color, size }) => <Home color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="services"
+        options={{
+          title: "Serviços",
+          tabBarIcon: ({ color, size }) => <Sparkles color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="orders"
         options={{
-          title: "Solicitações",
+          title: "Minhas Solicitações",
           tabBarIcon: ({ color, size }) => <ShoppingBag color={color} size={size} />,
         }}
       />

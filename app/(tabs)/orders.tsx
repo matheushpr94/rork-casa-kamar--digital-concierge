@@ -4,15 +4,12 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, ShoppingBag } from 'lucide-react-native';
-import { getOrders, updateOrderStatus, getServices } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
+import { Clock, CheckCircle, XCircle, AlertCircle, ShoppingBag } from 'lucide-react-native';
+import { getOrders, getServices } from '@/lib/api';
 import { useBooking } from '@/contexts/booking-context';
-import { useRole } from '@/hooks/useRole';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
@@ -43,7 +40,7 @@ const statusConfig = {
 
 export default function OrdersScreen() {
   const { bookingData } = useBooking();
-  const role = useRole();
+
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   const { data: orders, isLoading, refetch } = useQuery({
@@ -56,7 +53,7 @@ export default function OrdersScreen() {
     queryFn: getServices,
   });
 
-  const queryClient = useQueryClient();
+
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -64,25 +61,7 @@ export default function OrdersScreen() {
     setRefreshing(false);
   };
 
-  const handleUpdateStatus = async (order: Order) => {
-    const statusOptions = [
-      { label: 'Recebido', value: 'RECEIVED' },
-      { label: 'Em Andamento', value: 'IN_PROGRESS' },
-      { label: 'Concluído', value: 'COMPLETED' },
-      { label: 'Cancelado', value: 'CANCELLED' },
-    ];
 
-    const currentIndex = statusOptions.findIndex(s => s.value === order.status);
-    const nextStatus = statusOptions[(currentIndex + 1) % statusOptions.length];
-
-    try {
-      await updateOrderStatus(order.id, bookingData?.bookingCode || '', nextStatus.value);
-      queryClient.invalidateQueries({ queryKey: ['orders', bookingData?.bookingCode] });
-      Alert.alert('Status Atualizado', `Pedido alterado para: ${nextStatus.label}`);
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível atualizar o status do pedido.');
-    }
-  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -136,15 +115,6 @@ export default function OrdersScreen() {
 
         <View style={styles.orderFooter}>
           <Text style={styles.orderId}>#{order.id}</Text>
-          {role === 'admin' && (
-            <TouchableOpacity
-              style={styles.updateStatusButton}
-              onPress={() => handleUpdateStatus(order)}
-            >
-              <RefreshCw size={14} color="#2563eb" />
-              <Text style={styles.updateStatusText}>Atualizar Status</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </View>
     );
@@ -261,20 +231,7 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     fontFamily: 'monospace',
   },
-  updateStatusButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#eff6ff',
-    borderRadius: 8,
-    gap: 6,
-  },
-  updateStatusText: {
-    fontSize: 12,
-    color: '#2563eb',
-    fontWeight: '500',
-  },
+
   loadingText: {
     textAlign: 'center',
     color: '#64748b',

@@ -11,7 +11,7 @@ import {
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
-  ChefHat, 
+  Sparkles, 
   ShoppingBag, 
   Settings, 
   LogOut,
@@ -110,14 +110,14 @@ export default function AdminScreen() {
         <View style={styles.cardsContainer}>
           <TouchableOpacity 
             style={styles.adminCard}
-            onPress={() => router.push('/admin/menu')}
+            onPress={() => router.push('/admin/services')}
           >
-            <View style={[styles.cardIcon, { backgroundColor: '#fef3c7' }]}>
-              <ChefHat size={32} color="#f59e0b" />
+            <View style={[styles.cardIcon, { backgroundColor: '#dbeafe' }]}>
+              <Sparkles size={32} color="#2563eb" />
             </View>
-            <Text style={styles.cardTitle}>Cardápio</Text>
+            <Text style={styles.cardTitle}>Serviços Admin</Text>
             <Text style={styles.cardDescription}>
-              Gerenciar pratos, preços e disponibilidade
+              Gerenciar serviços, preços e disponibilidade
             </Text>
           </TouchableOpacity>
 
@@ -128,9 +128,9 @@ export default function AdminScreen() {
             <View style={[styles.cardIcon, { backgroundColor: '#dbeafe' }]}>
               <ShoppingBag size={32} color="#3b82f6" />
             </View>
-            <Text style={styles.cardTitle}>Pedidos</Text>
+            <Text style={styles.cardTitle}>Solicitações</Text>
             <Text style={styles.cardDescription}>
-              Visualizar e gerenciar pedidos dos hóspedes
+              Visualizar e gerenciar solicitações dos hóspedes
             </Text>
           </TouchableOpacity>
 
