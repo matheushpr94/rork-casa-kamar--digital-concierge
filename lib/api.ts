@@ -121,18 +121,24 @@ export async function createOrder(orderData: CreateOrderRequest): Promise<Order>
   
   await new Promise(resolve => setTimeout(resolve, 500));
   
+  // Get service name from services list
+  const services = await getServices();
+  const service = services.find(s => s.id === orderData.serviceId.trim());
+  const serviceName = service?.name || 'Serviço Solicitado';
+  const totalPrice = service ? service.price * (orderData.quantity || 1) : 0;
+  
   const newOrder: Order = {
     id: `ord_${Date.now()}`,
     bookingCode: orderData.bookingCode.trim(),
     serviceId: orderData.serviceId.trim(),
-    serviceName: 'Serviço Solicitado',
+    serviceName,
     date: orderData.date,
     time: orderData.time,
     quantity: orderData.quantity || 1,
     notes: orderData.notes?.trim() || '',
     status: 'RECEIVED',
     createdAt: new Date().toISOString(),
-    totalPrice: 0,
+    totalPrice,
   };
   
   return LocalStorage.addOrder(orderData.bookingCode, newOrder);

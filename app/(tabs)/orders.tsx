@@ -9,42 +9,51 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react-native';
-import { getOrders, updateOrderStatus } from '@/lib/api';
+import { Clock, CheckCircle, XCircle, AlertCircle, RefreshCw, ShoppingBag } from 'lucide-react-native';
+import { getOrders, updateOrderStatus, getServices } from '@/lib/api';
 import { useBooking } from '@/contexts/booking-context';
+import { useRole } from '@/hooks/useRole';
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
 import type { Order } from '@/types/api';
 
 const statusConfig = {
   RECEIVED: {
     label: 'Recebido',
-    color: '#3b82f6',
+    variant: 'neutral' as const,
     icon: Clock,
   },
   IN_PROGRESS: {
     label: 'Em Andamento',
-    color: '#f59e0b',
+    variant: 'indigo' as const,
     icon: AlertCircle,
   },
   COMPLETED: {
     label: 'Concluído',
-    color: '#10b981',
+    variant: 'emerald' as const,
     icon: CheckCircle,
   },
   CANCELLED: {
     label: 'Cancelado',
-    color: '#ef4444',
+    variant: 'rose' as const,
     icon: XCircle,
   },
 };
 
 export default function OrdersScreen() {
   const { bookingData } = useBooking();
+  const role = useRole();
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   const { data: orders, isLoading, refetch } = useQuery({
     queryKey: ['orders', bookingData?.bookingCode],
     queryFn: () => getOrders(bookingData?.bookingCode || ''),
     enabled: !!bookingData?.bookingCode,
+  });
+  const { data: services } = useQuery({
+    queryKey: ['services'],
+    queryFn: getServices,
   });
 
   const queryClient = useQueryClient();
@@ -88,18 +97,25 @@ export default function OrdersScreen() {
     return timeString.slice(0, 5);
   };
 
+  const getServiceName = (serviceId: string) => {
+    const service = services?.find(s => s.id === serviceId);
+    return service?.name || 'Serviço Solicitado';
+  };
+
   const renderOrderCard = (order: Order) => {
     const status = statusConfig[order.status];
     const IconComponent = status.icon;
+    const serviceName = getServiceName(order.serviceId);
 
     return (
       <View key={order.id} style={styles.orderCard}>
         <View style={styles.orderHeader}>
-          <Text style={styles.serviceName}>{order.serviceName}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
-            <IconComponent size={12} color="white" />
-            <Text style={styles.statusText}>{status.label}</Text>
-          </View>
+          <Text style={styles.serviceName}>{serviceName}</Text>
+          <Badge
+            label={status.label}
+            variant={status.variant}
+            icon={<IconComponent size={12} />}
+          />
         </View>
 
         <View style={styles.orderDetails}>
@@ -120,13 +136,15 @@ export default function OrdersScreen() {
 
         <View style={styles.orderFooter}>
           <Text style={styles.orderId}>#{order.id}</Text>
-          <TouchableOpacity
-            style={styles.updateStatusButton}
-            onPress={() => handleUpdateStatus(order)}
-          >
-            <RefreshCw size={14} color="#2563eb" />
-            <Text style={styles.updateStatusText}>Atualizar Status</Text>
-          </TouchableOpacity>
+          {role === 'admin' && (
+            <TouchableOpacity
+              style={styles.updateStatusButton}
+              onPress={() => handleUpdateStatus(order)}
+            >
+              <RefreshCw size={14} color="#2563eb" />
+              <Text style={styles.updateStatusText}>Atualizar Status</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -144,24 +162,20 @@ export default function OrdersScreen() {
           <Text style={styles.loadingText}>Carregando solicitações...</Text>
         ) : orders && orders.length > 0 ? (
           <View style={styles.ordersList}>
-            <TouchableOpacity
-              style={styles.refreshButton}
+            <Button
+              title={refreshing ? 'Atualizando...' : 'Atualizar'}
               onPress={handleRefresh}
-              disabled={refreshing}
-            >
-              <Text style={styles.refreshButtonText}>
-                {refreshing ? 'Atualizando...' : 'Atualizar'}
-              </Text>
-            </TouchableOpacity>
+              loading={refreshing}
+              style={styles.refreshButton}
+            />
             {orders.map(renderOrderCard)}
           </View>
         ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Nenhuma solicitação ainda</Text>
-            <Text style={styles.emptySubtitle}>
-              Seus pedidos aparecerão aqui quando você solicitar algum serviço
-            </Text>
-          </View>
+          <EmptyState
+            title="Você ainda não tem solicitações"
+            subtitle="Seus pedidos aparecerão aqui quando você solicitar algum serviço"
+            icon={<ShoppingBag size={48} color="#6b7280" />}
+          />
         )}
       </ScrollView>
     </View>
@@ -216,19 +230,7 @@ const styles = StyleSheet.create({
     color: '#1e293b',
     flex: 1,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  statusText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '500',
-  },
+
   orderDetails: {
     gap: 8,
     marginBottom: 16,
@@ -279,34 +281,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 40,
   },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-    marginTop: 60,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1e293b',
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
   refreshButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
     marginBottom: 16,
-  },
-  refreshButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
   },
 });

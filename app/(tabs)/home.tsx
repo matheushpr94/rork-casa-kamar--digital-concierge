@@ -18,6 +18,9 @@ import {
 } from 'lucide-react-native';
 import { getServices } from '@/lib/api';
 import { useBooking } from '@/contexts/booking-context';
+import { Card } from '@/components/ui/Card';
+import { SkeletonItemList } from '@/components/ui/SkeletonItemList';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type { Service } from '@/types/api';
 
 const serviceIcons = {
@@ -59,32 +62,39 @@ export default function ServicesScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.servicesGrid}>
           {isLoading ? (
-            <Text style={styles.loadingText}>Carregando serviços...</Text>
-          ) : (
-            services?.map((service) => {
+            <SkeletonItemList count={6} />
+          ) : services && services.length > 0 ? (
+            services.map((service) => {
               const IconComponent = serviceIcons[service.category as keyof typeof serviceIcons] || Sparkles;
               
               return (
                 <TouchableOpacity
                   key={service.id}
-                  style={styles.serviceCard}
                   onPress={() => handleServicePress(service)}
                   testID={`service-${service.id}`}
                 >
-                  <View style={styles.serviceIcon}>
-                    <IconComponent size={24} color="#2563eb" />
-                  </View>
-                  <Text style={styles.serviceName}>{service.name}</Text>
-                  <Text style={styles.servicePrice}>
-                    R$ {service.price.toFixed(2)}
-                    {service.unit && ` / ${service.unit}`}
-                  </Text>
-                  <Text style={styles.serviceDescription} numberOfLines={2}>
-                    {service.description}
-                  </Text>
+                  <Card style={styles.serviceCard}>
+                    <View style={styles.serviceIcon}>
+                      <IconComponent size={24} color="#2563eb" />
+                    </View>
+                    <Text style={styles.serviceName}>{service.name}</Text>
+                    <Text style={styles.servicePrice}>
+                      R$ {service.price.toFixed(2)}
+                      {service.unit && ` / ${service.unit}`}
+                    </Text>
+                    <Text style={styles.serviceDescription} numberOfLines={2}>
+                      {service.description}
+                    </Text>
+                  </Card>
                 </TouchableOpacity>
               );
             })
+          ) : (
+            <EmptyState
+              title="Nenhum serviço disponível"
+              subtitle="Os serviços aparecerão aqui quando estiverem disponíveis"
+              icon={<Sparkles size={48} color="#6b7280" />}
+            />
           )}
         </View>
       </ScrollView>
@@ -120,14 +130,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   serviceCard: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 16,
   },
   serviceIcon: {
     width: 48,
