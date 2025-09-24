@@ -8,30 +8,37 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Clock, CheckCircle, XCircle, AlertCircle, ShoppingBag } from 'lucide-react-native';
-import { getOrders, getServices } from '@/lib/api';
+import { requestsRepo, servicesRepo } from '@/lib/repositories';
 import { useBooking } from '@/contexts/booking-context';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
-import type { Order } from '@/types/api';
+import { useRole } from '@/hooks/useRole';
+import type { ServiceRequest } from '@/lib/ports/requests.port';
+import type { Service } from '@/lib/ports/services.port';
 
 const statusConfig = {
-  RECEIVED: {
+  pending: {
+    label: 'Pendente',
+    variant: 'neutral' as const,
+    icon: Clock,
+  },
+  received: {
     label: 'Recebido',
     variant: 'neutral' as const,
     icon: Clock,
   },
-  IN_PROGRESS: {
+  in_progress: {
     label: 'Em Andamento',
     variant: 'indigo' as const,
     icon: AlertCircle,
   },
-  COMPLETED: {
+  done: {
     label: 'Concluído',
     variant: 'emerald' as const,
     icon: CheckCircle,
   },
-  CANCELLED: {
+  canceled: {
     label: 'Cancelado',
     variant: 'rose' as const,
     icon: XCircle,
@@ -40,17 +47,19 @@ const statusConfig = {
 
 export default function OrdersScreen() {
   const { bookingData } = useBooking();
-
+  const role = useRole();
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
-  const { data: orders, isLoading, refetch } = useQuery({
-    queryKey: ['orders', bookingData?.bookingCode],
-    queryFn: () => getOrders(bookingData?.bookingCode || ''),
+  
+  const { data: requests, isLoading, refetch } = useQuery({
+    queryKey: ['requests', bookingData?.bookingCode],
+    queryFn: () => requestsRepo.listByUser(bookingData?.bookingCode || 'mock-user'),
     enabled: !!bookingData?.bookingCode,
   });
+  
   const { data: services } = useQuery({
     queryKey: ['services'],
-    queryFn: getServices,
+    queryFn: servicesRepo.list,
   });
 
 
@@ -63,8 +72,8 @@ export default function OrdersScreen() {
 
 
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -72,24 +81,29 @@ export default function OrdersScreen() {
     });
   };
 
-  const formatTime = (timeString: string) => {
-    return timeString.slice(0, 5);
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
-  const getServiceName = (serviceId: string) => {
-    const service = services?.find(s => s.id === serviceId);
-    return service?.name || 'Serviço Solicitado';
+  const getServiceName = (serviceId: string): Service | null => {
+    return services?.find(s => s.id === serviceId) || null;
   };
 
-  const renderOrderCard = (order: Order) => {
-    const status = statusConfig[order.status];
+  const renderRequestCard = (request: ServiceRequest) => {
+    const status = statusConfig[request.status];
     const IconComponent = status.icon;
-    const serviceName = getServiceName(order.serviceId);
+    const service = getServiceName(request.serviceId);
 
     return (
-      <View key={order.id} style={styles.orderCard}>
+      <View key={request.id} style={styles.orderCard}>
         <View style={styles.orderHeader}>
-          <Text style={styles.serviceName}>{serviceName}</Text>
+          <Text style={styles.serviceName}>
+            {service?.name || 'Serviço Solicitado'}
+          </Text>
           <Badge
             label={status.label}
             variant={status.variant}
@@ -99,22 +113,22 @@ export default function OrdersScreen() {
 
         <View style={styles.orderDetails}>
           <Text style={styles.orderDate}>
-            📅 {formatDate(order.date)} às {formatTime(order.time)}
+            📅 {formatDate(request.createdAt)} às {formatTime(request.createdAt)}
           </Text>
-          {order.quantity > 1 && (
-            <Text style={styles.orderQuantity}>
-              📦 Quantidade: {order.quantity}
+          {request.note && (
+            <Text style={styles.orderNotes}>
+              📝 {request.note}
             </Text>
           )}
-          {order.notes && (
-            <Text style={styles.orderNotes}>
-              📝 {order.notes}
+          {service?.price && (
+            <Text style={styles.servicePrice}>
+              💰 R$ {service.price.toFixed(2)}
             </Text>
           )}
         </View>
 
         <View style={styles.orderFooter}>
-          <Text style={styles.orderId}>#{order.id}</Text>
+          <Text style={styles.orderId}>#{request.id}</Text>
         </View>
       </View>
     );
@@ -130,7 +144,7 @@ export default function OrdersScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {isLoading ? (
           <Text style={styles.loadingText}>Carregando solicitações...</Text>
-        ) : orders && orders.length > 0 ? (
+        ) : requests && requests.length > 0 ? (
           <View style={styles.ordersList}>
             <Button
               title={refreshing ? 'Atualizando...' : 'Atualizar'}
@@ -138,7 +152,7 @@ export default function OrdersScreen() {
               loading={refreshing}
               style={styles.refreshButton}
             />
-            {orders.map(renderOrderCard)}
+            {requests.map(renderRequestCard)}
           </View>
         ) : (
           <EmptyState
@@ -217,6 +231,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     fontStyle: 'italic',
+  },
+  servicePrice: {
+    fontSize: 14,
+    color: '#10b981',
+    fontWeight: '500',
   },
   orderFooter: {
     flexDirection: 'row',

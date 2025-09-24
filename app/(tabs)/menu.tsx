@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonItemList } from '@/components/ui/SkeletonItemList';
-import { menuService } from '@/lib/services';
+import { menuRepo } from '@/lib/repositories';
 import { useQuery } from '@tanstack/react-query';
 
 const categories = ['Todos', 'Entradas', 'Pratos Principais', 'Sobremesas', 'Bebidas'];
@@ -22,12 +22,12 @@ export default function MenuScreen() {
   
   const { data: menuCategories, isLoading: categoriesLoading } = useQuery({
     queryKey: ['menuCategories'],
-    queryFn: menuService.listCategories,
+    queryFn: menuRepo.listCategories,
   });
   
   const { data: menuItems, isLoading: itemsLoading } = useQuery({
     queryKey: ['menuItems', selectedCategory],
-    queryFn: () => menuService.listItems(selectedCategory === 'Todos' ? undefined : selectedCategory),
+    queryFn: () => menuRepo.listItems(),
   });
   
   const isLoading = categoriesLoading || itemsLoading;

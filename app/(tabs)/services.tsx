@@ -14,38 +14,24 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Sparkles, 
-  ChefHat, 
-  Car, 
-  Shirt, 
-  Utensils, 
-  ShoppingCart,
   X,
   Clock,
 } from 'lucide-react-native';
-import { getServices, createOrder } from '@/lib/api';
+import { servicesRepo, requestsRepo } from '@/lib/repositories';
 import { useBooking } from '@/contexts/booking-context';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Chip } from '@/components/ui/Chip';
+
 import { SkeletonItemList } from '@/components/ui/SkeletonItemList';
 import { EmptyState } from '@/components/ui/EmptyState';
-import type { Service } from '@/types/api';
+import type { Service } from '@/lib/ports/services.port';
 import * as Haptics from 'expo-haptics';
 
-const serviceIcons = {
-  cleaning: Sparkles,
-  kitchen: ChefHat,
-  transport: Car,
-  laundry: Shirt,
-  dining: Utensils,
-  shopping: ShoppingCart,
-};
 
-const categories = ['Todos', 'Limpeza', 'Cozinha', 'Transporte', 'Lavanderia'];
 
 export default function ServicesScreen() {
   const { bookingData } = useBooking();
-  const [selectedCategory, setSelectedCategory] = useState('Todos');
+
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [notes, setNotes] = useState('');
@@ -54,7 +40,7 @@ export default function ServicesScreen() {
   
   const { data: services, isLoading } = useQuery({
     queryKey: ['services'],
-    queryFn: getServices,
+    queryFn: servicesRepo.list,
   });
   
   const queryClient = useQueryClient();
@@ -83,17 +69,10 @@ export default function ServicesScreen() {
     try {
       setIsSubmitting(true);
       
-      const now = new Date();
-      const orderData = {
-        bookingCode: bookingData.bookingCode,
-        serviceId: selectedService.id,
-        date: now.toISOString().split('T')[0],
-        time: now.toTimeString().slice(0, 5),
-        quantity: parseInt(quantity) || 1,
-        notes: notes.trim(),
-      };
-      
-      await createOrder(orderData);
+      await requestsRepo.create(selectedService.id, {
+        userId: bookingData.bookingCode,
+        note: notes.trim() || undefined,
+      });
       
       // Invalidate orders query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['orders', bookingData.bookingCode] });
@@ -105,17 +84,14 @@ export default function ServicesScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
-      console.error('Error creating order:', error);
+      console.error('Error creating request:', error);
       Alert.alert('Erro', 'Não foi possível enviar a solicitação. Tente novamente.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const filteredServices = services?.filter(service => {
-    if (selectedCategory === 'Todos') return true;
-    return service.category?.toLowerCase() === selectedCategory.toLowerCase();
-  }) || [];
+  const filteredServices = services || [];
 
   if (!bookingData) {
     return (
@@ -132,22 +108,7 @@ export default function ServicesScreen() {
         <Text style={styles.subtitle}>Solicite os serviços que precisa</Text>
       </View>
 
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoriesContainer}
-        contentContainerStyle={styles.categoriesContent}
-      >
-        {categories.map((category) => (
-          <Chip
-            key={category}
-            label={category}
-            selected={selectedCategory === category}
-            onPress={() => setSelectedCategory(category)}
-            style={styles.categoryChip}
-          />
-        ))}
-      </ScrollView>
+
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.servicesGrid}>
@@ -155,8 +116,6 @@ export default function ServicesScreen() {
             <SkeletonItemList count={6} />
           ) : filteredServices.length > 0 ? (
             filteredServices.map((service) => {
-              const IconComponent = serviceIcons[service.category as keyof typeof serviceIcons] || Sparkles;
-              
               return (
                 <TouchableOpacity
                   key={service.id}
@@ -165,17 +124,19 @@ export default function ServicesScreen() {
                 >
                   <Card style={styles.serviceCard}>
                     <View style={styles.serviceIcon}>
-                      <IconComponent size={24} color="#2563eb" />
+                      <Sparkles size={24} color="#2563eb" />
                     </View>
                     <Text style={styles.serviceName}>{service.name}</Text>
                     <Text style={styles.servicePrice}>
-                      R$ {service.price.toFixed(2)}
-                      {service.unit && ` / ${service.unit}`}
+                      {service.price ? `R$ ${service.price.toFixed(2)}` : 'Consultar'}
                     </Text>
-                    {service.leadTime && (
+                    {service.durationMin && (
                       <View style={styles.leadTimeContainer}>
                         <Clock size={12} color="#6b7280" />
-                        <Text style={styles.leadTime}>{service.leadTime}</Text>
+                        <Text style={styles.leadTime}>
+                          {service.durationMin < 60 ? `${service.durationMin} min` : 
+                           `${Math.floor(service.durationMin / 60)}h${service.durationMin % 60 ? ` ${service.durationMin % 60}min` : ''}`}
+                        </Text>
                       </View>
                     )}
                     <Text style={styles.serviceDescription} numberOfLines={2}>
@@ -194,10 +155,7 @@ export default function ServicesScreen() {
           ) : (
             <EmptyState
               title="Nenhum serviço encontrado"
-              subtitle={selectedCategory === 'Todos' 
-                ? "Os serviços aparecerão aqui quando estiverem disponíveis"
-                : `Nenhum serviço encontrado na categoria ${selectedCategory}`
-              }
+              subtitle="Os serviços aparecerão aqui quando estiverem disponíveis"
               icon={<Sparkles size={48} color="#6b7280" />}
             />
           )}
@@ -223,16 +181,18 @@ export default function ServicesScreen() {
               <View style={styles.serviceInfo}>
                 <Text style={styles.serviceInfoName}>{selectedService.name}</Text>
                 <Text style={styles.serviceInfoPrice}>
-                  R$ {selectedService.price.toFixed(2)}
-                  {selectedService.unit && ` / ${selectedService.unit}`}
+                  {selectedService.price ? `R$ ${selectedService.price.toFixed(2)}` : 'Consultar'}
                 </Text>
                 <Text style={styles.serviceInfoDescription}>
                   {selectedService.description}
                 </Text>
-                {selectedService.leadTime && (
+                {selectedService.durationMin && (
                   <View style={styles.leadTimeContainer}>
                     <Clock size={14} color="#6b7280" />
-                    <Text style={styles.leadTimeText}>Prazo: {selectedService.leadTime}</Text>
+                    <Text style={styles.leadTimeText}>
+                      Duração: {selectedService.durationMin < 60 ? `${selectedService.durationMin} min` : 
+                               `${Math.floor(selectedService.durationMin / 60)}h${selectedService.durationMin % 60 ? ` ${selectedService.durationMin % 60}min` : ''}`}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -302,17 +262,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748b',
   },
-  categoriesContainer: {
-    maxHeight: 60,
-  },
-  categoriesContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  categoryChip: {
-    marginRight: 8,
-  },
+
   content: {
     flex: 1,
   },

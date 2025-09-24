@@ -294,6 +294,10 @@ export default function AdminServicesScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.pageHeader}>
+        <Text style={styles.pageTitle}>Serviços Admin</Text>
+        <Text style={styles.pageSubtitle}>Gerencie os serviços disponíveis</Text>
+      </View>
       <View style={styles.header}>
         <View style={styles.searchContainer}>
           <Search size={20} color="#6b7280" />
@@ -449,6 +453,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  pageHeader: {
+    padding: 24,
+    paddingBottom: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  pageSubtitle: {
+    fontSize: 16,
+    color: '#64748b',
   },
   header: {
     backgroundColor: 'white',
