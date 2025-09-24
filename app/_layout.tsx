@@ -5,7 +5,6 @@ import React, { useEffect } from "react";
 import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BookingProvider } from "@/contexts/booking-context";
-import { trpc, trpcClient } from "@/lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -33,15 +32,13 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <BookingProvider>
-          <GestureHandlerRootView style={styles.gestureHandler}>
-            <RootLayoutNav />
-          </GestureHandlerRootView>
-        </BookingProvider>
-      </QueryClientProvider>
-    </trpc.Provider>
+    <QueryClientProvider client={queryClient}>
+      <BookingProvider>
+        <GestureHandlerRootView style={styles.gestureHandler}>
+          <RootLayoutNav />
+        </GestureHandlerRootView>
+      </BookingProvider>
+    </QueryClientProvider>
   );
 }
 

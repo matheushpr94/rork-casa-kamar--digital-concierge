@@ -7,9 +7,9 @@ import {
   StyleSheet,
   Linking,
   TextInput,
-  Clipboard,
   Alert,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Search,
@@ -18,7 +18,6 @@ import {
   X,
 } from 'lucide-react-native';
 import { HOUSE_MANUAL, searchManual, type ManualItem } from '@/lib/manual';
-import { router } from 'expo-router';
 
 const categoryColors: Record<string, string> = {
   'internet': '#3b82f6',
@@ -47,8 +46,7 @@ function getColorForTags(tags: string[]): string {
 
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
-    // For React Native, use the Clipboard API directly
-    Clipboard.setString(text);
+    await Clipboard.setStringAsync(text);
     return true;
   } catch (error) {
     console.error('Clipboard failed:', error);
