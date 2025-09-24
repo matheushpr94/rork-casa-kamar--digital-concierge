@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  RefreshControl,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
   Clock, 
   CheckCircle, 
@@ -16,106 +14,105 @@ import {
   RefreshCw,
   Package,
 } from 'lucide-react-native';
-import { LocalStorage } from '@/lib/storage';
-import type { Order } from '@/types/api';
+import { requestsRepo, servicesRepo } from '@/lib/repositories';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ServiceRequest } from '@/lib/ports/requests.port';
 
 const STATUS_CONFIG = {
-  RECEIVED: {
+  pending: {
+    label: 'Pendente',
+    color: '#6b7280',
+    bgColor: '#f3f4f6',
+    icon: Clock,
+    nextStatus: 'received' as const,
+    nextLabel: 'Receber',
+  },
+  received: {
     label: 'Recebido',
     color: '#3b82f6',
     bgColor: '#eff6ff',
     icon: Package,
-    nextStatus: 'IN_PROGRESS',
+    nextStatus: 'in_progress' as const,
     nextLabel: 'Iniciar',
   },
-  IN_PROGRESS: {
+  in_progress: {
     label: 'Em andamento',
     color: '#f59e0b',
     bgColor: '#fef3c7',
     icon: Clock,
-    nextStatus: 'COMPLETED',
+    nextStatus: 'done' as const,
     nextLabel: 'Concluir',
   },
-  COMPLETED: {
+  done: {
     label: 'Concluído',
     color: '#10b981',
     bgColor: '#f0fdf4',
     icon: CheckCircle,
-    nextStatus: 'CANCELLED',
+    nextStatus: 'canceled' as const,
     nextLabel: 'Cancelar',
   },
-  CANCELLED: {
+  canceled: {
     label: 'Cancelado',
     color: '#ef4444',
     bgColor: '#fef2f2',
     icon: XCircle,
-    nextStatus: 'RECEIVED',
+    nextStatus: 'pending' as const,
     nextLabel: 'Reativar',
   },
 };
 
 export default function AdminOrdersScreen() {
-  const insets = useSafeAreaInsets();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    loadOrders();
-  }, []);
-
-  const loadOrders = async () => {
-    try {
-      setIsLoading(true);
-      const guestOrders = await LocalStorage.getOrders('AZ123456');
-      setOrders(guestOrders.sort((a: Order, b: Order) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ));
-    } catch (error) {
-      console.error('Error loading orders:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const queryClient = useQueryClient();
+  
+  const { data: requests, isLoading, refetch } = useQuery({
+    queryKey: ['admin-requests'],
+    queryFn: () => requestsRepo.adminList(),
+  });
+  
+  const { data: services } = useQuery({
+    queryKey: ['services'],
+    queryFn: servicesRepo.list,
+  });
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadOrders();
+    await refetch();
     setRefreshing(false);
   };
 
-  const updateOrderStatus = async (order: Order, newStatus: string) => {
+  const updateOrderStatus = async (request: ServiceRequest, newStatus: string) => {
     try {
-      const updatedOrders = orders.map(o => 
-        o.id === order.id ? { ...o, status: newStatus as Order['status'] } : o
-      );
-      await LocalStorage.setOrders('AZ123456', updatedOrders);
-      setOrders(updatedOrders);
+      await requestsRepo.updateStatus(request.id, newStatus as any);
+      queryClient.invalidateQueries({ queryKey: ['admin-requests'] });
     } catch (error) {
-      console.error('Error updating order status:', error);
-      Alert.alert('Erro', 'Erro ao atualizar status do pedido');
+      console.error('Error updating request status:', error);
+      Alert.alert('Erro', 'Erro ao atualizar status da solicitação');
     }
   };
 
-  const handleStatusChange = (order: Order) => {
-    const config = STATUS_CONFIG[order.status as keyof typeof STATUS_CONFIG];
+  const handleStatusChange = (request: ServiceRequest) => {
+    const config = STATUS_CONFIG[request.status as keyof typeof STATUS_CONFIG];
     if (!config) return;
+
+    const service = services?.find(s => s.id === request.serviceId);
+    const serviceName = service?.name || 'Serviço';
 
     Alert.alert(
       'Alterar Status',
-      `Alterar status de "${order.serviceName}" para "${STATUS_CONFIG[config.nextStatus as keyof typeof STATUS_CONFIG]?.label}"?`,
+      `Alterar status de "${serviceName}" para "${STATUS_CONFIG[config.nextStatus as keyof typeof STATUS_CONFIG]?.label}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: config.nextLabel,
-          onPress: () => updateOrderStatus(order, config.nextStatus),
+          onPress: () => updateOrderStatus(request, config.nextStatus),
         },
       ]
     );
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
@@ -125,18 +122,19 @@ export default function AdminOrdersScreen() {
     });
   };
 
-  const renderOrder = (order: Order) => {
-    const config = STATUS_CONFIG[order.status as keyof typeof STATUS_CONFIG];
+  const renderRequest = (request: ServiceRequest) => {
+    const config = STATUS_CONFIG[request.status as keyof typeof STATUS_CONFIG];
     if (!config) return null;
 
     const IconComponent = config.icon;
+    const service = services?.find(s => s.id === request.serviceId);
 
     return (
-      <View key={order.id} style={styles.orderCard}>
+      <View key={request.id} style={styles.orderCard}>
         <View style={styles.orderHeader}>
           <View style={styles.orderInfo}>
-            <Text style={styles.orderTitle}>{order.serviceName}</Text>
-            <Text style={styles.orderId}>#{order.id}</Text>
+            <Text style={styles.orderTitle}>{service?.name || 'Serviço Solicitado'}</Text>
+            <Text style={styles.orderId}>#{request.id}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: config.bgColor }]}>
             <IconComponent size={16} color={config.color} />
@@ -148,33 +146,33 @@ export default function AdminOrdersScreen() {
 
         <View style={styles.orderDetails}>
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Data do serviço:</Text>
-            <Text style={styles.detailValue}>
-              {order.date} às {order.time}
-            </Text>
+            <Text style={styles.detailLabel}>Usuário:</Text>
+            <Text style={styles.detailValue}>{request.userId}</Text>
           </View>
           
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Quantidade:</Text>
-            <Text style={styles.detailValue}>{order.quantity}</Text>
-          </View>
-          
-          {order.notes && (
+          {request.note && (
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Observações:</Text>
-              <Text style={styles.detailValue}>{order.notes}</Text>
+              <Text style={styles.detailValue}>{request.note}</Text>
             </View>
           )}
           
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Criado em:</Text>
-            <Text style={styles.detailValue}>{formatDate(order.createdAt)}</Text>
+            <Text style={styles.detailValue}>{formatDate(request.createdAt)}</Text>
           </View>
+          
+          {request.updatedAt && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Atualizado em:</Text>
+              <Text style={styles.detailValue}>{formatDate(request.updatedAt)}</Text>
+            </View>
+          )}
         </View>
 
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: config.bgColor }]}
-          onPress={() => handleStatusChange(order)}
+          onPress={() => handleStatusChange(request)}
         >
           <Text style={[styles.actionButtonText, { color: config.color }]}>
             {config.nextLabel}
@@ -188,7 +186,7 @@ export default function AdminOrdersScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Carregando pedidos...</Text>
+          <Text style={styles.loadingText}>Carregando solicitações...</Text>
         </View>
       </View>
     );
@@ -198,9 +196,9 @@ export default function AdminOrdersScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>Pedidos dos Hóspedes</Text>
+          <Text style={styles.title}>Solicitações dos Hóspedes</Text>
           <Text style={styles.subtitle}>
-            {orders.length} {orders.length === 1 ? 'pedido' : 'pedidos'}
+            {requests?.length || 0} {(requests?.length || 0) === 1 ? 'solicitação' : 'solicitações'}
           </Text>
         </View>
         
@@ -212,20 +210,17 @@ export default function AdminOrdersScreen() {
       <ScrollView 
         style={styles.content} 
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
       >
-        {orders.length === 0 ? (
+        {!requests || requests.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Package size={48} color="#9ca3af" />
-            <Text style={styles.emptyTitle}>Nenhum pedido encontrado</Text>
+            <Text style={styles.emptyTitle}>Nenhuma solicitação encontrada</Text>
             <Text style={styles.emptySubtitle}>
-              Os pedidos dos hóspedes aparecerão aqui
+              As solicitações dos hóspedes aparecerão aqui
             </Text>
           </View>
         ) : (
-          orders.map(renderOrder)
+          requests.map(renderRequest)
         )}
       </ScrollView>
     </View>

@@ -13,7 +13,7 @@ import { useBooking } from '@/contexts/booking-context';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
-import { useRole } from '@/hooks/useRole';
+
 import type { ServiceRequest } from '@/lib/ports/requests.port';
 import type { Service } from '@/lib/ports/services.port';
 
@@ -47,12 +47,12 @@ const statusConfig = {
 
 export default function OrdersScreen() {
   const { bookingData } = useBooking();
-  const role = useRole();
+
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   
   const { data: requests, isLoading, refetch } = useQuery({
-    queryKey: ['requests', bookingData?.bookingCode],
+    queryKey: ['orders', bookingData?.bookingCode],
     queryFn: () => requestsRepo.listByUser(bookingData?.bookingCode || 'mock-user'),
     enabled: !!bookingData?.bookingCode,
   });
