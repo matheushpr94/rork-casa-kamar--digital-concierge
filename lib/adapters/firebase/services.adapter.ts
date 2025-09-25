@@ -1,4 +1,27 @@
-import { collection, query, where, orderBy, getDocs, doc, addDoc, updateDoc } from "firebase/firestore";
+// Firebase Firestore imports - only available in custom dev client
+let collection: any = null;
+let query: any = null;
+let where: any = null;
+let orderBy: any = null;
+let getDocs: any = null;
+let doc: any = null;
+let addDoc: any = null;
+let updateDoc: any = null;
+
+try {
+  const firestore = require('firebase/firestore');
+  collection = firestore.collection;
+  query = firestore.query;
+  where = firestore.where;
+  orderBy = firestore.orderBy;
+  getDocs = firestore.getDocs;
+  doc = firestore.doc;
+  addDoc = firestore.addDoc;
+  updateDoc = firestore.updateDoc;
+} catch (error) {
+  // Firebase not available in Expo Go
+}
+
 import { db, isFirebaseConfigured } from "@/lib/firebase";
 import { IServicesRepo, Service, ServiceVariant } from "@/lib/ports/services.port";
 
@@ -29,9 +52,9 @@ function normalizeVariants(variants: any): ServiceVariant[] {
 
 export const servicesRepoFirebase: IServicesRepo = {
   async list(): Promise<Service[]> {
-    if (!isFirebaseConfigured || !db) {
-      console.error('[Firebase Services] Firebase not configured properly');
-      throw new Error('Firebase not configured');
+    if (!isFirebaseConfigured || !db || !collection) {
+      console.error('[Firebase Services] Firebase not available or not configured properly');
+      throw new Error('Firebase not available');
     }
     
     try {
@@ -47,7 +70,7 @@ export const servicesRepoFirebase: IServicesRepo = {
       );
       
       const snapshot = await getDocs(q);
-      const services = snapshot.docs.map(doc => {
+      const services = snapshot.docs.map((doc: any) => {
         const data = doc.data();
         const service: Service = {
           id: doc.id,
@@ -67,7 +90,7 @@ export const servicesRepoFirebase: IServicesRepo = {
       });
       
       // Sort by order first, then by name
-      const sortedServices = services.sort((a, b) => {
+      const sortedServices = services.sort((a: Service, b: Service) => {
         if (a.order !== undefined && b.order !== undefined) {
           return a.order - b.order;
         }
@@ -88,9 +111,9 @@ export const servicesRepoFirebase: IServicesRepo = {
   },
   
   async create(data: Omit<Service, "id">): Promise<Service> {
-    if (!isFirebaseConfigured || !db) {
-      console.error('[Firebase Services] Firebase not configured properly');
-      throw new Error('Firebase not configured');
+    if (!isFirebaseConfigured || !db || !addDoc) {
+      console.error('[Firebase Services] Firebase not available or not configured properly');
+      throw new Error('Firebase not available');
     }
     
     try {
@@ -114,9 +137,9 @@ export const servicesRepoFirebase: IServicesRepo = {
   },
   
   async update(id: string, data: Partial<Service>): Promise<void> {
-    if (!isFirebaseConfigured || !db) {
-      console.error('[Firebase Services] Firebase not configured properly');
-      throw new Error('Firebase not configured');
+    if (!isFirebaseConfigured || !db || !updateDoc) {
+      console.error('[Firebase Services] Firebase not available or not configured properly');
+      throw new Error('Firebase not available');
     }
     
     try {
@@ -132,9 +155,9 @@ export const servicesRepoFirebase: IServicesRepo = {
   },
   
   async updateAvailability(id: string, available: boolean): Promise<void> {
-    if (!isFirebaseConfigured || !db) {
-      console.error('[Firebase Services] Firebase not configured properly');
-      throw new Error('Firebase not configured');
+    if (!isFirebaseConfigured || !db || !updateDoc) {
+      console.error('[Firebase Services] Firebase not available or not configured properly');
+      throw new Error('Firebase not available');
     }
     
     try {

@@ -40,7 +40,7 @@ export default function ServicesScreen() {
   const [quantity, setQuantity] = useState('1');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { data: services, isLoading } = useQuery({
+  const { data: services, isLoading } = useQuery<Service[]>({
     queryKey: ['services'],
     queryFn: servicesRepo.list,
   });
@@ -122,7 +122,7 @@ export default function ServicesScreen() {
           {isLoading ? (
             <SkeletonItemList count={6} />
           ) : filteredServices.length > 0 ? (
-            filteredServices.map((service) => {
+            filteredServices.map((service: Service) => {
               return (
                 <TouchableOpacity
                   key={service.id}
@@ -136,9 +136,8 @@ export default function ServicesScreen() {
                     <Text style={styles.serviceName}>{service.name}</Text>
                     <Text style={styles.servicePrice}>
                       {service.variants && service.variants.length > 0 
-                        ? `A partir de R$ ${Math.min(...service.variants.map(v => v.price)).toFixed(2)}`
-                        : service.price ? `R$ ${service.price.toFixed(2)}` : 'Consultar'
-                      }
+                        ? `A partir de R$ ${Math.min(...service.variants.map((v: ServiceVariant) => v.price)).toFixed(2)}`
+                        : service.price ? `R$ ${service.price.toFixed(2)}` : 'Consultar'}
                     </Text>
                     {service.durationMin && (
                       <View style={styles.leadTimeContainer}>
@@ -193,8 +192,7 @@ export default function ServicesScreen() {
                 <Text style={styles.serviceInfoPrice}>
                   {selectedVariant 
                     ? `R$ ${selectedVariant.price.toFixed(2)}` 
-                    : selectedService.price ? `R$ ${selectedService.price.toFixed(2)}` : 'Consultar'
-                  }
+                    : selectedService.price ? `R$ ${selectedService.price.toFixed(2)}` : 'Consultar'}
                 </Text>
                 <Text style={styles.serviceInfoDescription}>
                   {selectedService.description}

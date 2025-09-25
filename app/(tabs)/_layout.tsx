@@ -11,7 +11,7 @@ import {
   Alert,
 } from "react-native";
 import { router } from "expo-router";
-import { Home, ShoppingBag, FileText, Utensils, ChefHat, User, LogOut, Sparkles } from "lucide-react-native";
+import { Home, ShoppingBag, FileText, ChefHat, User, LogOut, Sparkles } from "lucide-react-native";
 import { LocalStorage } from "@/lib/storage";
 import * as Haptics from 'expo-haptics';
 
@@ -132,13 +132,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <ChefHat color={color} size={size} />,
         }}
       />
-      <Tabs.Screen
-        name="meals"
-        options={{
-          title: "Refeições",
-          tabBarIcon: ({ color, size }) => <Utensils color={color} size={size} />,
-        }}
-      />
+
       </Tabs>
 
       <Modal

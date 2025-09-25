@@ -1,7 +1,28 @@
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+// Firebase imports - only available in custom dev client, not Expo Go
+let initializeApp: any = null;
+let getApps: any = null;
+let getApp: any = null;
+let getAuth: any = null;
+let getFirestore: any = null;
+let getStorage: any = null;
+
+try {
+  const firebaseApp = require('firebase/app');
+  const firebaseAuth = require('firebase/auth');
+  const firebaseFirestore = require('firebase/firestore');
+  const firebaseStorage = require('firebase/storage');
+  
+  initializeApp = firebaseApp.initializeApp;
+  getApps = firebaseApp.getApps;
+  getApp = firebaseApp.getApp;
+  getAuth = firebaseAuth.getAuth;
+  getFirestore = firebaseFirestore.getFirestore;
+  getStorage = firebaseStorage.getStorage;
+} catch (error) {
+  if (__DEV__) {
+    console.log('[Firebase] Firebase SDK not available in Expo Go - using mock data');
+  }
+}
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -12,12 +33,16 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Check if Firebase config is complete
-const isFirebaseConfigured = Object.values(firebaseConfig).every(value => value && value !== 'undefined');
+// Check if Firebase config is complete and SDK is available
+const hasFirebaseSDK = initializeApp !== null;
+const isFirebaseConfigured = hasFirebaseSDK && Object.values(firebaseConfig).every(value => value && value !== 'undefined');
 
 if (__DEV__) {
+  console.log('[Firebase] SDK available:', hasFirebaseSDK);
   console.log('[Firebase] Configuration status:', isFirebaseConfigured ? 'Complete' : 'Incomplete');
-  if (!isFirebaseConfigured) {
+  if (!hasFirebaseSDK) {
+    console.log('[Firebase] Firebase SDK not available - running in Expo Go mode');
+  } else if (!isFirebaseConfigured) {
     console.log('[Firebase] Missing environment variables - Firebase will not be initialized');
   } else {
     console.log('[Firebase] Initializing with project:', firebaseConfig.projectId);
@@ -30,12 +55,17 @@ let auth: any = null;
 let db: any = null;
 let storage: any = null;
 
-if (isFirebaseConfigured) {
+if (isFirebaseConfigured && hasFirebaseSDK) {
   try {
-    app = initializeApp(firebaseConfig);
+    // Check if Firebase app is already initialized
+    app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
     auth = getAuth(app);
     db = getFirestore(app);
     storage = getStorage(app);
+    
+    if (__DEV__) {
+      console.log('[Firebase] Successfully initialized');
+    }
   } catch (error) {
     console.error('[Firebase] Initialization error:', error);
   }

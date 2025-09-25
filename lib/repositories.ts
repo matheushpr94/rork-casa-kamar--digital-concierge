@@ -5,8 +5,14 @@ import { servicesRepoMock } from "@/lib/adapters/mock/services.adapter";
 import { requestsRepoMock } from "@/lib/adapters/mock/requests.adapter";
 import { authMock } from "@/lib/adapters/mock/auth.adapter";
 
-// Firebase adapters
-import { servicesRepoFirebase } from "@/lib/adapters/firebase/services.adapter";
+// Firebase adapters - only import if Firebase is available
+let servicesRepoFirebase: any = null;
+try {
+  const firebaseServices = require('@/lib/adapters/firebase/services.adapter');
+  servicesRepoFirebase = firebaseServices.servicesRepoFirebase;
+} catch (error) {
+  // Firebase adapter not available
+}
 // import { menuRepoFirebase } from "@/lib/adapters/firebase/menu.adapter";
 // import { requestsRepoFirebase } from "@/lib/adapters/firebase/requests.adapter";
 // import { authFirebase } from "@/lib/adapters/firebase/auth.adapter";
@@ -26,6 +32,6 @@ if (__DEV__) {
 }
 
 export const menuRepo = shouldUseFirebase ? /* menuRepoFirebase */ menuRepoMock : menuRepoMock;
-export const servicesRepo = shouldUseFirebase ? servicesRepoFirebase : servicesRepoMock;
+export const servicesRepo = (shouldUseFirebase && servicesRepoFirebase) ? servicesRepoFirebase : servicesRepoMock;
 export const requestsRepo = shouldUseFirebase ? /* requestsRepoFirebase */ requestsRepoMock : requestsRepoMock;
 export const authService = shouldUseFirebase ? /* authFirebase */ authMock : authMock;
