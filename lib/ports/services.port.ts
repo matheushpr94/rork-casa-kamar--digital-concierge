@@ -8,8 +8,11 @@ export type Service = {
   id: string; 
   name: string; 
   description?: string; 
+  category?: string;
   price?: number; 
-  durationMin?: number; 
+  unit?: string;
+  duration?: number; // Firebase field name
+  durationMin?: number; // Legacy field name
   available?: boolean;
   active?: boolean;
   order?: number;

@@ -20,7 +20,7 @@ import {
   X,
   Save,
 } from 'lucide-react-native';
-import { servicesRepoMockAdmin } from '@/lib/adapters/mock/services.adapter';
+import { servicesRepo } from '@/lib/repositories';
 import type { Service, ServiceVariant } from '@/lib/ports/services.port';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -41,7 +41,7 @@ export default function AdminServicesScreen() {
   
   const { data: services, isLoading } = useQuery({
     queryKey: ['admin-services'],
-    queryFn: servicesRepoMockAdmin.list,
+    queryFn: servicesRepo.list,
   });
 
 
@@ -83,9 +83,9 @@ export default function AdminServicesScreen() {
       };
 
       if (editingItem) {
-        await servicesRepoMockAdmin.update(editingItem.id, serviceData);
+        await servicesRepo.update(editingItem.id, serviceData);
       } else {
-        await servicesRepoMockAdmin.create(serviceData as Omit<Service, 'id'>);
+        await servicesRepo.create(serviceData as Omit<Service, 'id'>);
       }
       
       queryClient.invalidateQueries({ queryKey: ['admin-services'] });
@@ -101,7 +101,7 @@ export default function AdminServicesScreen() {
 
   const handleToggleActive = async (item: Service) => {
     try {
-      await servicesRepoMockAdmin.update(item.id, { active: !item.active });
+      await servicesRepo.update(item.id, { active: !item.active });
       queryClient.invalidateQueries({ queryKey: ['admin-services'] });
       queryClient.invalidateQueries({ queryKey: ['services'] });
     } catch (error) {
@@ -121,7 +121,7 @@ export default function AdminServicesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await servicesRepoMockAdmin.update(item.id, { active: false });
+              await servicesRepo.update(item.id, { active: false });
               queryClient.invalidateQueries({ queryKey: ['admin-services'] });
               queryClient.invalidateQueries({ queryKey: ['services'] });
             } catch (error) {
