@@ -1,8 +1,7 @@
-// Firebase is currently disabled to avoid bundling issues
-const USE_FIREBASE = false;
+const USE_FIREBASE = true;
 
 if (__DEV__) {
-  console.log('[Registry] 🧪 Mock mode enabled (Firebase disabled)');
+  console.log('[Registry] USE_FIREBASE=true');
 }
 
 export { USE_FIREBASE };

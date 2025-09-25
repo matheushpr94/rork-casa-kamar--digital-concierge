@@ -1,21 +1,13 @@
-import { menuRepoMock } from "@/lib/adapters/mock/menu.adapter";
-import { servicesRepoMock } from "@/lib/adapters/mock/services.adapter";
-import { requestsRepoMock } from "@/lib/adapters/mock/requests.adapter";
-import { authMock } from "@/lib/adapters/mock/auth.adapter";
-
-// For now, always use mock adapters to avoid bundling issues
-// TODO: Implement Firebase adapters when needed
+import { menuRepoFirebase } from "@/lib/adapters/firebase/menu.adapter";
+import { servicesRepoFirebase } from "@/lib/adapters/firebase/services.adapter";
+import { requestsRepoFirebase } from "@/lib/adapters/firebase/requests.adapter";
+import { authFirebase } from "@/lib/adapters/firebase/auth.adapter";
 
 if (__DEV__) {
-  console.log('[Repositories] Repository providers:');
-  console.log('  - Final decision: Mock (Firebase disabled)');
-  console.log('  - Services: Mock');
-  console.log('  - Menu: Mock');
-  console.log('  - Requests: Mock');
-  console.log('  - Auth: Mock');
+  console.log('[Repositories] Using Firebase');
 }
 
-export const menuRepo = menuRepoMock;
-export const servicesRepo = servicesRepoMock;
-export const requestsRepo = requestsRepoMock;
-export const authService = authMock;
+export const menuRepo = menuRepoFirebase;
+export const servicesRepo = servicesRepoFirebase;
+export const requestsRepo = requestsRepoFirebase;
+export const authService = authFirebase;
