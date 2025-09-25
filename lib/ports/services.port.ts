@@ -1,6 +1,6 @@
 export type ServiceVariant = {
   id: string;
-  name: string;
+  label: string;
   price: number;
 };
 
@@ -16,6 +16,7 @@ export type Service = {
   available?: boolean;
   active?: boolean;
   order?: number;
+  featured?: boolean;
   variants?: ServiceVariant[];
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -57,18 +57,48 @@ async function copyToClipboard(text: string): Promise<boolean> {
 export default function ManualScreen() {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredItems, setFilteredItems] = useState<ManualItem[]>(HOUSE_MANUAL);
+  const [filteredItems, setFilteredItems] = useState<ManualItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    loadManualData();
+  }, []);
+  
+  const loadManualData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      // TODO: Replace with manualRepo.list() when available
+      // For now, use static data but simulate loading
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setFilteredItems(HOUSE_MANUAL);
+    } catch (err) {
+      console.error('Error loading manual data:', err);
+      setError('Erro ao carregar o manual');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
-    const results = searchManual(query);
-    setFilteredItems(results);
+    if (query.trim() === '') {
+      setFilteredItems(HOUSE_MANUAL);
+    } else {
+      const results = searchManual(query);
+      setFilteredItems(results);
+    }
   }, []);
 
   const clearSearch = useCallback(() => {
     setSearchQuery('');
     setFilteredItems(HOUSE_MANUAL);
   }, []);
+  
+  const handleRetry = () => {
+    loadManualData();
+  };
 
   const handleItemPress = (item: ManualItem) => {
     // For now, just show the content inline
@@ -185,12 +215,28 @@ export default function ManualScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.manualList}>
-          {filteredItems.length > 0 ? (
+          {isLoading ? (
+            <View style={styles.loadingState}>
+              <Text style={styles.loadingText}>Carregando manual...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorState}>
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
+                <Text style={styles.retryButtonText}>Tentar novamente</Text>
+              </TouchableOpacity>
+            </View>
+          ) : filteredItems.length > 0 ? (
             filteredItems.map(renderManualItem)
-          ) : (
+          ) : searchQuery ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>Nenhum item encontrado</Text>
               <Text style={styles.emptyStateSubtext}>Tente buscar por outros termos</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>Manual não disponível</Text>
+              <Text style={styles.emptyStateSubtext}>O conteúdo será carregado em breve</Text>
             </View>
           )}
         </View>
@@ -345,5 +391,34 @@ const styles = StyleSheet.create({
   emptyStateSubtext: {
     fontSize: 14,
     color: '#9ca3af',
+  },
+  loadingState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#64748b',
+  },
+  errorState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ef4444',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

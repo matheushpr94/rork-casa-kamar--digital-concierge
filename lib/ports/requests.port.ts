@@ -9,6 +9,7 @@ export type ServiceRequest = {
   createdAt: number; 
   updatedAt?: number;
   variantId?: string;
+  variantName?: string;
   price?: number;
 };
 

@@ -15,7 +15,7 @@ import {
   ArrowRight,
 } from 'lucide-react-native';
 import { useBooking } from '@/contexts/booking-context';
-import { Card, Badge, SkeletonItemList, EmptyState } from '@/components/ui';
+import { Card, Badge, SkeletonItemList } from '@/components/ui';
 import { requestsRepo, servicesRepo, menuRepo } from '@/lib/repositories';
 import { ServiceRequest } from '@/lib/ports/requests.port';
 import { Service } from '@/lib/ports/services.port';
@@ -93,14 +93,18 @@ export default function HomeScreen() {
         menuRepo.listItems()
       ]);
 
-      // Get recent requests (last 3)
+      // Get recent requests (pending/in_progress only)
       const sortedRequests = requestsData
-        .filter(r => r.status !== 'canceled')
+        .filter(r => r.status === 'pending' || r.status === 'in_progress')
         .sort((a, b) => b.createdAt - a.createdAt)
         .slice(0, 3);
       
       setRecentRequests(sortedRequests);
-      setServices(servicesData.slice(0, 3)); // Top 3 services
+      
+      // Filter featured services or top 3
+      const featuredServices = servicesData.filter(s => s.featured === true);
+      setServices(featuredServices.length > 0 ? featuredServices.slice(0, 3) : servicesData.slice(0, 3));
+      
       setMenuItems(menuData.slice(0, 3)); // Top 3 menu items
 
       // Create a map of services for quick lookup
@@ -136,146 +140,178 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Recent Requests Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Clock size={20} color="#3b82f6" />
-            <Text style={styles.sectionTitle}>Solicitações em Andamento</Text>
+        {/* Recent Requests Section - Only show if loading or has data */}
+        {isLoading || recentRequests.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Clock size={20} color="#3b82f6" />
+              <Text style={styles.sectionTitle}>Solicitações em Andamento</Text>
+            </View>
+            
+            {isLoading ? (
+              <SkeletonItemList count={2} />
+            ) : (
+              <View style={styles.requestsList}>
+                {recentRequests.map((request) => {
+                  const service = servicesWithRequests[request.serviceId];
+                  return (
+                    <Card key={request.id} style={styles.requestCard}>
+                      <View style={styles.requestContent}>
+                        <View style={styles.requestInfo}>
+                          <Text style={styles.requestServiceName}>
+                            {service?.name || 'Serviço não encontrado'}
+                          </Text>
+                          <Text style={styles.requestDate}>
+                            {formatDate(request.createdAt)}
+                          </Text>
+                          {request.note && (
+                            <Text style={styles.requestNote} numberOfLines={1}>
+                              {request.note}
+                            </Text>
+                          )}
+                          {request.variantName && (
+                            <Text style={styles.requestVariant}>
+                              Variante: {request.variantName}
+                            </Text>
+                          )}
+                          {request.price && (
+                            <Text style={styles.requestPrice}>
+                              {formatPrice(request.price)}
+                            </Text>
+                          )}
+                        </View>
+                        <Badge 
+                          label={getStatusLabel(request.status)}
+                          variant={getStatusVariant(request.status)}
+                        />
+                      </View>
+                    </Card>
+                  );
+                })}
+                <TouchableOpacity 
+                  style={styles.viewAllButton}
+                  onPress={() => handleNavigate('/(tabs)/orders')}
+                >
+                  <Text style={styles.viewAllText}>Ver todas</Text>
+                  <ArrowRight size={16} color="#3b82f6" />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-          
-          {isLoading ? (
-            <SkeletonItemList count={2} />
-          ) : recentRequests.length > 0 ? (
-            <View style={styles.requestsList}>
-              {recentRequests.map((request) => {
-                const service = servicesWithRequests[request.serviceId];
-                return (
-                  <Card key={request.id} style={styles.requestCard}>
-                    <View style={styles.requestContent}>
-                      <View style={styles.requestInfo}>
-                        <Text style={styles.requestServiceName}>
-                          {service?.name || 'Serviço não encontrado'}
-                        </Text>
-                        <Text style={styles.requestDate}>
-                          {formatDate(request.createdAt)}
-                        </Text>
-                        {request.note && (
-                          <Text style={styles.requestNote} numberOfLines={1}>
-                            {request.note}
+        ) : (
+          // Show CTA when no requests
+          <View style={styles.section}>
+            <Card style={styles.ctaCard}>
+              <View style={styles.ctaContent}>
+                <Text style={styles.ctaTitle}>Faça seu primeiro pedido</Text>
+                <Text style={styles.ctaSubtitle}>Explore nossos serviços e solicite o que precisar</Text>
+                <TouchableOpacity 
+                  style={styles.ctaButton}
+                  onPress={() => handleNavigate('/(tabs)/services')}
+                >
+                  <Text style={styles.ctaButtonText}>Ver serviços</Text>
+                  <ArrowRight size={16} color="white" />
+                </TouchableOpacity>
+              </View>
+            </Card>
+          </View>
+        )}
+
+        {/* Menu Highlights Section - Only show if loading or has data */}
+        {(isLoading || menuItems.length > 0) && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <ChefHat size={20} color="#8b5cf6" />
+              <Text style={styles.sectionTitle}>Destaques do Cardápio</Text>
+            </View>
+            
+            {isLoading ? (
+              <SkeletonItemList count={2} />
+            ) : (
+              <View style={styles.menuList}>
+                {menuItems.map((item) => (
+                  <Card key={item.id} style={styles.menuCard}>
+                    <View style={styles.menuContent}>
+                      <View style={styles.menuInfo}>
+                        <Text style={styles.menuTitle}>{item.title}</Text>
+                        <Text style={styles.menuPrice}>{formatPrice(item.price)}</Text>
+                        {item.description && (
+                          <Text style={styles.menuDescription} numberOfLines={2}>
+                            {item.description}
                           </Text>
                         )}
                       </View>
                       <Badge 
-                        label={getStatusLabel(request.status)}
-                        variant={getStatusVariant(request.status)}
+                        label={item.available ? 'Disponível' : 'Indisponível'}
+                        variant={item.available ? 'emerald' : 'neutral'}
                       />
                     </View>
                   </Card>
-                );
-              })}
-              <TouchableOpacity 
-                style={styles.viewAllButton}
-                onPress={() => handleNavigate('/(tabs)/orders')}
-              >
-                <Text style={styles.viewAllText}>Ver todas</Text>
-                <ArrowRight size={16} color="#3b82f6" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <EmptyState 
-              title="Nenhuma solicitação em andamento"
-              subtitle="Você não tem solicitações ativas no momento"
-            />
-          )}
-        </View>
-
-        {/* Menu Highlights Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <ChefHat size={20} color="#8b5cf6" />
-            <Text style={styles.sectionTitle}>Destaques do Cardápio</Text>
+                ))}
+                <TouchableOpacity 
+                  style={styles.viewAllButton}
+                  onPress={() => handleNavigate('/(tabs)/menu')}
+                >
+                  <Text style={styles.viewAllText}>Explorar cardápio</Text>
+                  <ArrowRight size={16} color="#8b5cf6" />
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-          
-          {isLoading ? (
-            <SkeletonItemList count={2} />
-          ) : menuItems.length > 0 ? (
-            <View style={styles.menuList}>
-              {menuItems.map((item) => (
-                <Card key={item.id} style={styles.menuCard}>
-                  <View style={styles.menuContent}>
-                    <View style={styles.menuInfo}>
-                      <Text style={styles.menuTitle}>{item.title}</Text>
-                      <Text style={styles.menuPrice}>{formatPrice(item.price)}</Text>
-                      {item.description && (
-                        <Text style={styles.menuDescription} numberOfLines={2}>
-                          {item.description}
-                        </Text>
-                      )}
-                    </View>
-                    <Badge 
-                      label={item.available ? 'Disponível' : 'Indisponível'}
-                      variant={item.available ? 'emerald' : 'neutral'}
-                    />
-                  </View>
-                </Card>
-              ))}
-              <TouchableOpacity 
-                style={styles.viewAllButton}
-                onPress={() => handleNavigate('/(tabs)/menu')}
-              >
-                <Text style={styles.viewAllText}>Explorar cardápio</Text>
-                <ArrowRight size={16} color="#8b5cf6" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <EmptyState 
-              title="Cardápio em breve"
-              subtitle="Estamos preparando opções especiais para você"
-            />
-          )}
-        </View>
+        )}
 
-        {/* Popular Services Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <TrendingUp size={20} color="#10b981" />
-            <Text style={styles.sectionTitle}>Serviços Mais Pedidos</Text>
-          </View>
-          
-          {isLoading ? (
-            <SkeletonItemList count={3} />
-          ) : (
-            <View style={styles.servicesList}>
-              {services.map((service) => (
-                <Card key={service.id} style={styles.serviceCard}>
-                  <View style={styles.serviceContent}>
-                    <View style={styles.serviceInfo}>
-                      <Text style={styles.serviceTitle}>{service.name}</Text>
-                      <Text style={styles.servicePrice}>{formatPrice(service.price || 0)}</Text>
-                      {service.description && (
-                        <Text style={styles.serviceDescription} numberOfLines={2}>
-                          {service.description}
-                        </Text>
-                      )}
-                      {service.durationMin && (
-                        <Text style={styles.serviceDuration}>
-                          Duração: {Math.floor(service.durationMin / 60)}h {service.durationMin % 60}min
-                        </Text>
-                      )}
-                    </View>
-                  </View>
-                </Card>
-              ))}
-              <TouchableOpacity 
-                style={styles.viewAllButton}
-                onPress={() => handleNavigate('/(tabs)/services')}
-              >
-                <Text style={styles.viewAllText}>Ver serviços</Text>
-                <ArrowRight size={16} color="#10b981" />
-              </TouchableOpacity>
+        {/* Popular Services Section - Only show if loading or has data */}
+        {(isLoading || services.length > 0) && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <TrendingUp size={20} color="#10b981" />
+              <Text style={styles.sectionTitle}>Destaques dos Serviços</Text>
             </View>
-          )}
-        </View>
+            
+            {isLoading ? (
+              <SkeletonItemList count={3} />
+            ) : (
+              <View style={styles.servicesList}>
+                {services.map((service) => {
+                  const hasVariants = service.variants && service.variants.length > 0;
+                  const displayPrice = hasVariants 
+                    ? Math.min(...service.variants!.map(v => v.price))
+                    : service.price || 0;
+                  
+                  return (
+                    <Card key={service.id} style={styles.serviceCard}>
+                      <View style={styles.serviceContent}>
+                        <View style={styles.serviceInfo}>
+                          <Text style={styles.serviceTitle}>{service.name}</Text>
+                          <Text style={styles.servicePrice}>
+                            {hasVariants ? 'A partir de ' : ''}{formatPrice(displayPrice)}
+                          </Text>
+                          {service.description && (
+                            <Text style={styles.serviceDescription} numberOfLines={2}>
+                              {service.description}
+                            </Text>
+                          )}
+                          {service.duration && (
+                            <Text style={styles.serviceDuration}>
+                              Duração: {service.duration}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    </Card>
+                  );
+                })}
+                <TouchableOpacity 
+                  style={styles.viewAllButton}
+                  onPress={() => handleNavigate('/(tabs)/services')}
+                >
+                  <Text style={styles.viewAllText}>Ver serviços</Text>
+                  <ArrowRight size={16} color="#10b981" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* House Manual Section */}
         <View style={styles.section}>
@@ -372,6 +408,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748b',
     fontStyle: 'italic',
+  },
+  requestVariant: {
+    fontSize: 12,
+    color: '#8b5cf6',
+    fontWeight: '500',
+  },
+  requestPrice: {
+    fontSize: 14,
+    color: '#10b981',
+    fontWeight: '600',
+  },
+  ctaCard: {
+    backgroundColor: '#f0f9ff',
+    borderColor: '#0ea5e9',
+  },
+  ctaContent: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  ctaTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  ctaSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  ctaButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0ea5e9',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+  },
+  ctaButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
   },
   menuList: {
     gap: 8,
