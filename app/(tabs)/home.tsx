@@ -18,8 +18,10 @@ import { useBooking } from '@/contexts/booking-context';
 import { Card, Badge, SkeletonItemList } from '@/components/ui';
 import { requestsRepo, servicesRepo, menuRepo } from '@/lib/repositories';
 import { ServiceRequest } from '@/lib/ports/requests.port';
-import { Service } from '@/lib/ports/services.port';
+import type { Service } from '@/lib/ports/services.port';
 import { MenuItem } from '@/lib/ports/menu.port';
+import { formatCurrencyBRL } from '@/lib/utils/currency';
+import { getMinVariantPrice } from '@/lib/utils/service';
 
 const getStatusLabel = (status: string) => {
   switch (status) {
@@ -47,19 +49,7 @@ const formatDate = (timestamp: number) => {
   return date.toLocaleDateString('pt-BR');
 };
 
-const formatPrice = (price: number) => {
-  if (typeof price !== 'number' || isNaN(price) || price < 0) {
-    return 'R$ 0,00';
-  }
-  
-  // Validate price range to prevent formatting issues
-  const validatedPrice = Math.min(Math.max(price, 0), 999999.99);
-  
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(validatedPrice);
-};
+
 
 const getStatusVariant = (status: string): 'neutral' | 'indigo' | 'emerald' | 'rose' => {
   switch (status) {
@@ -101,9 +91,17 @@ export default function HomeScreen() {
       
       setRecentRequests(sortedRequests);
       
-      // Filter featured services or top 3
-      const featuredServices = servicesData.filter(s => s.featured === true);
-      setServices(featuredServices.length > 0 ? featuredServices.slice(0, 3) : servicesData.slice(0, 3));
+      // Try featured services first, fallback to first 3 active services
+      let featuredServices = servicesData.filter(s => s.featured === true && s.active === true);
+      if (featuredServices.length === 0) {
+        // Fallback: get first 3 active services
+        featuredServices = servicesData
+          .filter(s => s.active === true)
+          .slice(0, 3);
+      } else {
+        featuredServices = featuredServices.slice(0, 3);
+      }
+      setServices(featuredServices);
       
       setMenuItems(menuData.slice(0, 3)); // Top 3 menu items
 
@@ -176,7 +174,7 @@ export default function HomeScreen() {
                           )}
                           {request.price && (
                             <Text style={styles.requestPrice}>
-                              {formatPrice(request.price)}
+                              {formatCurrencyBRL(request.price)}
                             </Text>
                           )}
                         </View>
@@ -234,7 +232,7 @@ export default function HomeScreen() {
                     <View style={styles.menuContent}>
                       <View style={styles.menuInfo}>
                         <Text style={styles.menuTitle}>{item.title}</Text>
-                        <Text style={styles.menuPrice}>{formatPrice(item.price)}</Text>
+                        <Text style={styles.menuPrice}>{formatCurrencyBRL(item.price)}</Text>
                         {item.description && (
                           <Text style={styles.menuDescription} numberOfLines={2}>
                             {item.description}
@@ -273,19 +271,19 @@ export default function HomeScreen() {
             ) : (
               <View style={styles.servicesList}>
                 {services.map((service) => {
+                  const minPrice = getMinVariantPrice(service);
                   const hasVariants = service.variants && service.variants.length > 0;
-                  const displayPrice = hasVariants 
-                    ? Math.min(...service.variants!.map(v => v.price))
-                    : service.price || 0;
                   
                   return (
                     <Card key={service.id} style={styles.serviceCard}>
                       <View style={styles.serviceContent}>
                         <View style={styles.serviceInfo}>
                           <Text style={styles.serviceTitle}>{service.name}</Text>
-                          <Text style={styles.servicePrice}>
-                            {hasVariants ? 'A partir de ' : ''}{formatPrice(displayPrice)}
-                          </Text>
+                          {minPrice !== null && (
+                            <Text style={styles.servicePrice}>
+                              {hasVariants ? 'A partir de ' : ''}{formatCurrencyBRL(minPrice)}
+                            </Text>
+                          )}
                           {service.description && (
                             <Text style={styles.serviceDescription} numberOfLines={2}>
                               {service.description}

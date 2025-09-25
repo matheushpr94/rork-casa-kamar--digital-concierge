@@ -17,7 +17,8 @@ import {
   Copy,
   X,
 } from 'lucide-react-native';
-import { HOUSE_MANUAL, searchManual, type ManualItem } from '@/lib/manual';
+import { manualRepo } from '@/lib/repositories';
+import type { ManualItem } from '@/lib/ports/manual.port';
 
 const categoryColors: Record<string, string> = {
   'internet': '#3b82f6',
@@ -35,7 +36,8 @@ const categoryColors: Record<string, string> = {
   'transporte': '#6366f1',
 };
 
-function getColorForTags(tags: string[]): string {
+function getColorForTags(tags?: string[]): string {
+  if (!tags) return '#64748b';
   for (const tag of tags) {
     if (categoryColors[tag]) {
       return categoryColors[tag];
@@ -69,10 +71,8 @@ export default function ManualScreen() {
     try {
       setIsLoading(true);
       setError(null);
-      // TODO: Replace with manualRepo.list() when available
-      // For now, use static data but simulate loading
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setFilteredItems(HOUSE_MANUAL);
+      const items = await manualRepo.list({ onlyActive: true });
+      setFilteredItems(items);
     } catch (err) {
       console.error('Error loading manual data:', err);
       setError('Erro ao carregar o manual');
@@ -81,19 +81,26 @@ export default function ManualScreen() {
     }
   };
   
-  const handleSearch = useCallback((query: string) => {
+  const handleSearch = useCallback(async (query: string) => {
     setSearchQuery(query);
-    if (query.trim() === '') {
-      setFilteredItems(HOUSE_MANUAL);
-    } else {
-      const results = searchManual(query);
-      setFilteredItems(results);
+    try {
+      setIsLoading(true);
+      const items = await manualRepo.list({ 
+        search: query.trim() || undefined, 
+        onlyActive: true 
+      });
+      setFilteredItems(items);
+    } catch (err) {
+      console.error('Error searching manual:', err);
+      setError('Erro ao buscar no manual');
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
   const clearSearch = useCallback(() => {
     setSearchQuery('');
-    setFilteredItems(HOUSE_MANUAL);
+    loadManualData();
   }, []);
   
   const handleRetry = () => {
@@ -150,37 +157,28 @@ export default function ManualScreen() {
         <View style={styles.cardHeader}>
           <View style={styles.cardTitleContainer}>
             <Text style={styles.cardTitle}>{item.title}</Text>
-            <View style={styles.tagsContainer}>
-              {item.tags.slice(0, 3).map((tag, index) => (
-                <View key={index} style={[styles.tagBadge, { backgroundColor: `${itemColor}20` }]}>
-                  <Text style={[styles.tagText, { color: itemColor }]}>{tag}</Text>
-                </View>
-              ))}
-            </View>
+            {item.tags && item.tags.length > 0 && (
+              <View style={styles.tagsContainer}>
+                {item.tags.slice(0, 3).map((tag, index) => (
+                  <View key={`${item.id}-tag-${index}`} style={[styles.tagBadge, { backgroundColor: `${itemColor}20` }]}>
+                    <Text style={[styles.tagText, { color: itemColor }]}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
           </View>
           <ExternalLink size={20} color="#64748b" />
         </View>
 
         <View style={styles.cardBody}>
-          {item.body.slice(0, 2).map((paragraph, index) => (
-            <View key={index} style={styles.paragraphContainer}>
-              <Text style={styles.cardDescription}>{paragraph}</Text>
-              {renderCopyButton(paragraph)}
-            </View>
-          ))}
+          <View style={styles.paragraphContainer}>
+            <Text style={styles.cardDescription}>{item.content}</Text>
+            {renderCopyButton(item.content)}
+          </View>
           
-          {item.links && item.links.length > 0 && (
-            <View style={styles.linksContainer}>
-              {item.links.map((link, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.linkButton}
-                  onPress={() => handleLinkPress(link.url)}
-                >
-                  <ExternalLink size={14} color="#2563eb" />
-                  <Text style={styles.linkText}>{link.label}</Text>
-                </TouchableOpacity>
-              ))}
+          {item.category && (
+            <View style={styles.categoryContainer}>
+              <Text style={styles.categoryText}>Categoria: {item.category}</Text>
             </View>
           )}
         </View>
@@ -333,6 +331,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '500',
     textTransform: 'uppercase',
+  },
+  categoryContainer: {
+    marginTop: 8,
+  },
+  categoryText: {
+    fontSize: 12,
+    color: '#8b5cf6',
+    fontWeight: '500',
   },
   cardBody: {
     gap: 12,
