@@ -40,7 +40,7 @@ export default function ServicesScreen() {
   const [quantity, setQuantity] = useState('1');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { data: services, isLoading } = useQuery<Service[]>({
+  const { data: services, isLoading, error, refetch } = useQuery<Service[]>({
     queryKey: ['services'],
     queryFn: servicesRepo.list,
   });
@@ -120,7 +120,17 @@ export default function ServicesScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.servicesGrid}>
           {isLoading ? (
-            <SkeletonItemList count={6} />
+            <SkeletonItemList count={3} />
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>Erro ao carregar serviços</Text>
+              <Button
+                title="Tentar novamente"
+                onPress={() => refetch()}
+                variant="outline"
+                style={styles.retryButton}
+              />
+            </View>
           ) : filteredServices.length > 0 ? (
             filteredServices.map((service: Service) => {
               return (
@@ -163,7 +173,7 @@ export default function ServicesScreen() {
             })
           ) : (
             <EmptyState
-              title="Nenhum serviço encontrado"
+              title="Nenhum serviço disponível"
               subtitle="Os serviços aparecerão aqui quando estiverem disponíveis"
               icon={<Sparkles size={48} color="#6b7280" />}
             />
@@ -447,5 +457,18 @@ const styles = StyleSheet.create({
   },
   variantChip: {
     marginBottom: 8,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ef4444',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  retryButton: {
+    minWidth: 120,
   },
 });
