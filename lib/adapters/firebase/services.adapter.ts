@@ -1,5 +1,5 @@
 import { collection, query, where, orderBy, getDocs, doc, addDoc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, isFirebaseConfigured } from "@/lib/firebase";
 import { IServicesRepo, Service, ServiceVariant } from "@/lib/ports/services.port";
 
 // Helper function to normalize variants from different formats
@@ -29,6 +29,11 @@ function normalizeVariants(variants: any): ServiceVariant[] {
 
 export const servicesRepoFirebase: IServicesRepo = {
   async list(): Promise<Service[]> {
+    if (!isFirebaseConfigured || !db) {
+      console.error('[Firebase Services] Firebase not configured properly');
+      throw new Error('Firebase not configured');
+    }
+    
     try {
       if (__DEV__) {
         console.log('[Firebase Services] Fetching services from Firestore...');
@@ -83,6 +88,11 @@ export const servicesRepoFirebase: IServicesRepo = {
   },
   
   async create(data: Omit<Service, "id">): Promise<Service> {
+    if (!isFirebaseConfigured || !db) {
+      console.error('[Firebase Services] Firebase not configured properly');
+      throw new Error('Firebase not configured');
+    }
+    
     try {
       const servicesRef = collection(db, 'services');
       const docRef = await addDoc(servicesRef, {
@@ -104,6 +114,11 @@ export const servicesRepoFirebase: IServicesRepo = {
   },
   
   async update(id: string, data: Partial<Service>): Promise<void> {
+    if (!isFirebaseConfigured || !db) {
+      console.error('[Firebase Services] Firebase not configured properly');
+      throw new Error('Firebase not configured');
+    }
+    
     try {
       const serviceRef = doc(db, 'services', id);
       await updateDoc(serviceRef, {
@@ -117,6 +132,11 @@ export const servicesRepoFirebase: IServicesRepo = {
   },
   
   async updateAvailability(id: string, available: boolean): Promise<void> {
+    if (!isFirebaseConfigured || !db) {
+      console.error('[Firebase Services] Firebase not configured properly');
+      throw new Error('Firebase not configured');
+    }
+    
     try {
       const serviceRef = doc(db, 'services', id);
       await updateDoc(serviceRef, {

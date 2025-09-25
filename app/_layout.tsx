@@ -17,7 +17,7 @@ function RootLayoutNav() {
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="admin" options={{ headerShown: false }} />
-      <Stack.Screen name="admin/menu" options={{ title: "Cardápio Admin" }} />
+      <Stack.Screen name="admin/services" options={{ title: "Serviços Admin" }} />
       <Stack.Screen name="admin/orders" options={{ title: "Pedidos Admin" }} />
       <Stack.Screen name="admin/settings" options={{ title: "Configurações Admin" }} />
       <Stack.Screen name="service/[id]" options={{ title: "Serviço" }} />

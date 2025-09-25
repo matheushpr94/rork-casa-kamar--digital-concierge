@@ -12,11 +12,34 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Check if Firebase config is complete
+const isFirebaseConfigured = Object.values(firebaseConfig).every(value => value && value !== 'undefined');
+
 if (__DEV__) {
-  console.log('[Firebase] Initializing with project:', firebaseConfig.projectId);
+  console.log('[Firebase] Configuration status:', isFirebaseConfigured ? 'Complete' : 'Incomplete');
+  if (!isFirebaseConfigured) {
+    console.log('[Firebase] Missing environment variables - Firebase will not be initialized');
+  } else {
+    console.log('[Firebase] Initializing with project:', firebaseConfig.projectId);
+  }
 }
 
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+// Only initialize Firebase if configuration is complete
+let app: any = null;
+let auth: any = null;
+let db: any = null;
+let storage: any = null;
+
+if (isFirebaseConfigured) {
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+  } catch (error) {
+    console.error('[Firebase] Initialization error:', error);
+  }
+}
+
+export { app, auth, db, storage };
+export { isFirebaseConfigured };
