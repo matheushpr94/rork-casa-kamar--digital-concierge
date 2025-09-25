@@ -13,6 +13,7 @@ import { useBooking } from '@/contexts/booking-context';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
+import { SkeletonItemList } from '@/components/ui/SkeletonItemList';
 
 import type { ServiceRequest } from '@/lib/ports/requests.port';
 import type { Service, ServiceVariant } from '@/lib/ports/services.port';
@@ -51,7 +52,7 @@ export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   
-  const { data: requests, isLoading, refetch } = useQuery({
+  const { data: requests, isLoading, error, refetch } = useQuery({
     queryKey: ['orders', bookingData?.bookingCode],
     queryFn: () => requestsRepo.listByUser(bookingData?.bookingCode || 'mock-user'),
     enabled: !!bookingData?.bookingCode,
@@ -66,8 +67,13 @@ export default function OrdersScreen() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await refetch();
-    setRefreshing(false);
+    try {
+      await refetch();
+    } catch (err) {
+      console.error('[Orders] Refresh error:', err);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
 
@@ -129,9 +135,9 @@ export default function OrdersScreen() {
               📝 {request.note}
             </Text>
           )}
-          {(request.price || service?.price) && (
+          {request.price && (
             <Text style={styles.servicePrice}>
-              💰 R$ {(request.price || service?.price || 0).toFixed(2)}
+              💰 R$ {request.price.toFixed(2)}
             </Text>
           )}
         </View>
@@ -152,7 +158,20 @@ export default function OrdersScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {isLoading ? (
-          <Text style={styles.loadingText}>Carregando solicitações...</Text>
+          <View style={styles.ordersList}>
+            <SkeletonItemList count={3} />
+          </View>
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorTitle}>Erro ao carregar solicitações</Text>
+            <Text style={styles.errorMessage}>Não foi possível carregar suas solicitações. Tente novamente.</Text>
+            <Button
+              title="Tentar novamente"
+              onPress={handleRefresh}
+              loading={refreshing}
+              style={styles.retryButton}
+            />
+          </View>
         ) : requests && requests.length > 0 ? (
           <View style={styles.ordersList}>
             <Button
@@ -165,7 +184,7 @@ export default function OrdersScreen() {
           </View>
         ) : (
           <EmptyState
-            title="Você ainda não tem solicitações"
+            title="Nenhuma solicitação encontrada"
             subtitle="Seus pedidos aparecerão aqui quando você solicitar algum serviço"
             icon={<ShoppingBag size={48} color="#6b7280" />}
           />
@@ -260,11 +279,27 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
 
-  loadingText: {
-    textAlign: 'center',
-    color: '#64748b',
-    fontSize: 16,
+  errorContainer: {
+    padding: 24,
+    alignItems: 'center',
     marginTop: 40,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#dc2626',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  retryButton: {
+    minWidth: 140,
   },
   refreshButton: {
     marginBottom: 16,
