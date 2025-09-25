@@ -11,7 +11,7 @@ export type Service = {
   category?: string;
   price?: number; 
   unit?: string;
-  duration?: number; // Firebase field name
+  duration?: string | number;
   durationMin?: number; // Legacy field name
   available?: boolean;
   active?: boolean;
