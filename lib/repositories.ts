@@ -10,6 +10,10 @@ import { authMock } from "@/lib/adapters/mock/auth.adapter";
 // import { requestsRepoFirebase } from "@/lib/adapters/firebase/requests.adapter";
 // import { authFirebase } from "@/lib/adapters/firebase/auth.adapter";
 
+if (__DEV__) {
+  console.log('[Repositories] Active provider:', USE_FIREBASE ? 'Firebase' : 'Mock');
+}
+
 export const menuRepo = USE_FIREBASE ? /* menuRepoFirebase */ menuRepoMock : menuRepoMock;
 export const servicesRepo = USE_FIREBASE ? /* servicesRepoFirebase */ servicesRepoMock : servicesRepoMock;
 export const requestsRepo = USE_FIREBASE ? /* requestsRepoFirebase */ requestsRepoMock : requestsRepoMock;

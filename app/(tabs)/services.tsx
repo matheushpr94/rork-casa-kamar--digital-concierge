@@ -21,10 +21,11 @@ import { servicesRepo, requestsRepo } from '@/lib/repositories';
 import { useBooking } from '@/contexts/booking-context';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Chip } from '@/components/ui/Chip';
 
 import { SkeletonItemList } from '@/components/ui/SkeletonItemList';
 import { EmptyState } from '@/components/ui/EmptyState';
-import type { Service } from '@/lib/ports/services.port';
+import type { Service, ServiceVariant } from '@/lib/ports/services.port';
 import * as Haptics from 'expo-haptics';
 
 
@@ -34,6 +35,7 @@ export default function ServicesScreen() {
 
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ServiceVariant | null>(null);
   const [notes, setNotes] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,6 +60,7 @@ export default function ServicesScreen() {
       Haptics.selectionAsync();
     }
     setSelectedService(service);
+    setSelectedVariant(service.variants?.[0] || null);
     setNotes('');
     setQuantity('1');
     setShowRequestModal(true);
@@ -69,9 +72,13 @@ export default function ServicesScreen() {
     try {
       setIsSubmitting(true);
       
+      const finalPrice = selectedVariant?.price || selectedService.price;
+      
       await requestsRepo.create(selectedService.id, {
         userId: bookingData.bookingCode,
         note: notes.trim() || undefined,
+        variantId: selectedVariant?.id,
+        price: finalPrice,
       });
       
       // Invalidate orders query to refresh the list
@@ -128,7 +135,10 @@ export default function ServicesScreen() {
                     </View>
                     <Text style={styles.serviceName}>{service.name}</Text>
                     <Text style={styles.servicePrice}>
-                      {service.price ? `R$ ${service.price.toFixed(2)}` : 'Consultar'}
+                      {service.variants && service.variants.length > 0 
+                        ? `A partir de R$ ${Math.min(...service.variants.map(v => v.price)).toFixed(2)}`
+                        : service.price ? `R$ ${service.price.toFixed(2)}` : 'Consultar'
+                      }
                     </Text>
                     {service.durationMin && (
                       <View style={styles.leadTimeContainer}>
@@ -181,11 +191,31 @@ export default function ServicesScreen() {
               <View style={styles.serviceInfo}>
                 <Text style={styles.serviceInfoName}>{selectedService.name}</Text>
                 <Text style={styles.serviceInfoPrice}>
-                  {selectedService.price ? `R$ ${selectedService.price.toFixed(2)}` : 'Consultar'}
+                  {selectedVariant 
+                    ? `R$ ${selectedVariant.price.toFixed(2)}` 
+                    : selectedService.price ? `R$ ${selectedService.price.toFixed(2)}` : 'Consultar'
+                  }
                 </Text>
                 <Text style={styles.serviceInfoDescription}>
                   {selectedService.description}
                 </Text>
+                
+                {selectedService.variants && selectedService.variants.length > 0 && (
+                  <View style={styles.variantsContainer}>
+                    <Text style={styles.variantsLabel}>Opções:</Text>
+                    <View style={styles.variantsChips}>
+                      {selectedService.variants.map((variant) => (
+                        <Chip
+                          key={variant.id}
+                          label={`${variant.name} - R$ ${variant.price.toFixed(2)}`}
+                          selected={selectedVariant?.id === variant.id}
+                          onPress={() => setSelectedVariant(variant)}
+                          style={styles.variantChip}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                )}
                 {selectedService.durationMin && (
                   <View style={styles.leadTimeContainer}>
                     <Clock size={14} color="#6b7280" />
@@ -402,5 +432,22 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
+  },
+  variantsContainer: {
+    marginTop: 16,
+  },
+  variantsLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  variantsChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  variantChip: {
+    marginBottom: 8,
   },
 });

@@ -8,10 +8,12 @@ export type ServiceRequest = {
   status: RequestStatus; 
   createdAt: number; 
   updatedAt?: number;
+  variantId?: string;
+  price?: number;
 };
 
 export interface IRequestsRepo {
-  create(serviceId: string, payload: { userId: string; note?: string }): Promise<ServiceRequest>;
+  create(serviceId: string, payload: { userId: string; note?: string; variantId?: string; price?: number }): Promise<ServiceRequest>;
   listByUser(userId: string): Promise<ServiceRequest[]>;
   adminList(params?: { status?: RequestStatus; from?: number; to?: number }): Promise<ServiceRequest[]>;
   updateStatus(id: string, status: RequestStatus): Promise<void>;

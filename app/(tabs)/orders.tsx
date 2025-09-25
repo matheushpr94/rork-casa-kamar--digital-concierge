@@ -15,7 +15,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 
 import type { ServiceRequest } from '@/lib/ports/requests.port';
-import type { Service } from '@/lib/ports/services.port';
+import type { Service, ServiceVariant } from '@/lib/ports/services.port';
 
 const statusConfig = {
   pending: {
@@ -92,17 +92,26 @@ export default function OrdersScreen() {
   const getServiceName = (serviceId: string): Service | null => {
     return services?.find(s => s.id === serviceId) || null;
   };
+  
+  const getVariantName = (service: Service | null, variantId?: string): ServiceVariant | null => {
+    if (!service || !variantId || !service.variants) return null;
+    return service.variants.find(v => v.id === variantId) || null;
+  };
 
   const renderRequestCard = (request: ServiceRequest) => {
     const status = statusConfig[request.status];
     const IconComponent = status.icon;
     const service = getServiceName(request.serviceId);
+    const variant = getVariantName(service, request.variantId);
 
     return (
       <View key={request.id} style={styles.orderCard}>
         <View style={styles.orderHeader}>
           <Text style={styles.serviceName}>
             {service?.name || 'Serviço Solicitado'}
+            {variant && (
+              <Text style={styles.variantName}> ({variant.name})</Text>
+            )}
           </Text>
           <Badge
             label={status.label}
@@ -120,9 +129,9 @@ export default function OrdersScreen() {
               📝 {request.note}
             </Text>
           )}
-          {service?.price && (
+          {(request.price || service?.price) && (
             <Text style={styles.servicePrice}>
-              💰 R$ {service.price.toFixed(2)}
+              💰 R$ {(request.price || service?.price || 0).toFixed(2)}
             </Text>
           )}
         </View>
@@ -259,5 +268,10 @@ const styles = StyleSheet.create({
   },
   refreshButton: {
     marginBottom: 16,
+  },
+  variantName: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: '#6b7280',
   },
 });

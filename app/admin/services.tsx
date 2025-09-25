@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -11,244 +11,170 @@ import {
   Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { 
   Plus, 
   Edit3, 
   Trash2, 
-  RotateCcw, 
   Search,
   X,
   Save,
 } from 'lucide-react-native';
-import { LocalStorage } from '@/lib/storage';
+import { servicesRepoMockAdmin } from '@/lib/adapters/mock/services.adapter';
+import type { Service, ServiceVariant } from '@/lib/ports/services.port';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { SkeletonItemList } from '@/components/ui/SkeletonItemList';
+import { EmptyState } from '@/components/ui/EmptyState';
 
-interface ServiceItem {
-  id: string;
-  category: string;
-  name: string;
-  description: string;
-  price: number;
-  unit: string;
-  leadTime: string;
-  isAvailable: boolean;
-  imageUrl?: string;
-}
 
-const SEED_SERVICES: ServiceItem[] = [
-  {
-    id: 'limpeza-extra',
-    category: 'Limpeza',
-    name: 'Limpeza Extra',
-    description: 'Limpeza adicional completa do ambiente',
-    price: 80.00,
-    unit: 'por limpeza',
-    leadTime: '2-4 horas',
-    isAvailable: true,
-  },
-  {
-    id: 'limpeza-completa',
-    category: 'Limpeza',
-    name: 'Limpeza Completa',
-    description: 'Limpeza profunda com organização',
-    price: 120.00,
-    unit: 'por limpeza',
-    leadTime: '4-6 horas',
-    isAvailable: true,
-  },
-  {
-    id: 'almoco-caseiro',
-    category: 'Cozinha',
-    name: 'Almoço Caseiro',
-    description: 'Refeição completa preparada por chef',
-    price: 45.00,
-    unit: 'por pessoa',
-    leadTime: '2-3 horas',
-    isAvailable: true,
-  },
-  {
-    id: 'churrasco-premium',
-    category: 'Cozinha',
-    name: 'Churrasco Premium',
-    description: 'Churrasco completo com acompanhamentos',
-    price: 85.00,
-    unit: 'por pessoa',
-    leadTime: '4-6 horas',
-    isAvailable: true,
-  },
-  {
-    id: 'transfer-aeroporto',
-    category: 'Transporte',
-    name: 'Transfer Aeroporto',
-    description: 'Transporte confortável de/para aeroporto',
-    price: 120.00,
-    unit: 'por trajeto',
-    leadTime: '1-2 horas',
-    isAvailable: true,
-  },
-  {
-    id: 'passeio-lancha',
-    category: 'Transporte',
-    name: 'Passeio de Lancha',
-    description: 'Passeio exclusivo de lancha',
-    price: 300.00,
-    unit: 'por grupo',
-    leadTime: '24 horas',
-    isAvailable: true,
-  },
-];
 
 export default function AdminServicesScreen() {
   const insets = useSafeAreaInsets();
-  const [serviceItems, setServiceItems] = useState<ServiceItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [editingItem, setEditingItem] = useState<ServiceItem | null>(null);
-  const [formData, setFormData] = useState<Partial<ServiceItem>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [editingItem, setEditingItem] = useState<Service | null>(null);
+  const [formData, setFormData] = useState<Partial<Service>>({});
+  const [variants, setVariants] = useState<ServiceVariant[]>([]);
+  
+  const queryClient = useQueryClient();
+  
+  const { data: services, isLoading } = useQuery({
+    queryKey: ['admin-services'],
+    queryFn: servicesRepoMockAdmin.list,
+  });
 
-  useEffect(() => {
-    loadServiceItems();
-  }, []);
 
-  const loadServiceItems = async () => {
-    try {
-      setIsLoading(true);
-      const items = await LocalStorage.getAdminMenu();
-      if (items.length === 0) {
-        await LocalStorage.setAdminMenu(SEED_SERVICES);
-        setServiceItems(SEED_SERVICES);
-      } else {
-        setServiceItems(items);
-      }
-    } catch (error) {
-      console.error('Error loading service items:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const saveServiceItems = async (items: ServiceItem[]) => {
-    try {
-      await LocalStorage.setAdminMenu(items);
-      setServiceItems(items);
-    } catch (error) {
-      console.error('Error saving service items:', error);
-      Alert.alert('Erro', 'Erro ao salvar item de serviço');
-    }
-  };
 
   const handleAddNew = () => {
     setEditingItem(null);
     setFormData({
-      category: 'Limpeza',
       name: '',
       description: '',
       price: 0,
-      unit: 'por item',
-      leadTime: '1-2 horas',
-      isAvailable: true,
+      durationMin: 60,
+      available: true,
+      active: true,
+      order: (services?.length || 0) + 1,
     });
+    setVariants([]);
     setShowModal(true);
   };
 
-  const handleEdit = (item: ServiceItem) => {
+  const handleEdit = (item: Service) => {
     setEditingItem(item);
     setFormData({ ...item });
+    setVariants(item.variants || []);
     setShowModal(true);
   };
 
   const handleSave = async () => {
-    if (!formData.name?.trim() || !formData.description?.trim() || !formData.price || formData.price <= 0) {
+    if (!formData.name?.trim() || !formData.description?.trim()) {
       Alert.alert('Erro', 'Preencha todos os campos obrigatórios');
       return;
     }
 
-    const newItem: ServiceItem = {
-      id: editingItem?.id || `service_${Date.now()}`,
-      category: formData.category || 'Limpeza',
-      name: formData.name.trim(),
-      description: formData.description.trim(),
-      price: formData.price,
-      unit: formData.unit || 'por item',
-      leadTime: formData.leadTime || '1-2 horas',
-      isAvailable: formData.isAvailable ?? true,
-      imageUrl: formData.imageUrl,
-    };
+    try {
+      const serviceData: Partial<Service> = {
+        ...formData,
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        variants: variants.length > 0 ? variants : undefined,
+      };
 
-    let updatedItems: ServiceItem[];
-    if (editingItem) {
-      updatedItems = serviceItems.map(item => item.id === editingItem.id ? newItem : item);
-    } else {
-      updatedItems = [...serviceItems, newItem];
+      if (editingItem) {
+        await servicesRepoMockAdmin.update(editingItem.id, serviceData);
+      } else {
+        await servicesRepoMockAdmin.create(serviceData as Omit<Service, 'id'>);
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['admin-services'] });
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      setShowModal(false);
+      setFormData({});
+      setVariants([]);
+    } catch (error) {
+      console.error('Error saving service:', error);
+      Alert.alert('Erro', 'Erro ao salvar serviço');
     }
-
-    await saveServiceItems(updatedItems);
-    setShowModal(false);
-    setFormData({});
   };
 
-  const handleToggleAvailability = async (item: ServiceItem) => {
-    const updatedItems = serviceItems.map(serviceItem => 
-      serviceItem.id === item.id 
-        ? { ...serviceItem, isAvailable: !serviceItem.isAvailable }
-        : serviceItem
-    );
-    await saveServiceItems(updatedItems);
+  const handleToggleActive = async (item: Service) => {
+    try {
+      await servicesRepoMockAdmin.update(item.id, { active: !item.active });
+      queryClient.invalidateQueries({ queryKey: ['admin-services'] });
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+    } catch (error) {
+      console.error('Error updating service:', error);
+      Alert.alert('Erro', 'Erro ao atualizar serviço');
+    }
   };
 
-  const handleDelete = (item: ServiceItem) => {
+  const handleDelete = (item: Service) => {
     Alert.alert(
-      'Excluir Serviço',
-      `Tem certeza que deseja excluir "${item.name}"?`,
+      'Desativar Serviço',
+      `Tem certeza que deseja desativar "${item.name}"? Ele não aparecerá mais para os hóspedes.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Excluir',
+          text: 'Desativar',
           style: 'destructive',
           onPress: async () => {
-            const updatedItems = serviceItems.filter(serviceItem => serviceItem.id !== item.id);
-            await saveServiceItems(updatedItems);
+            try {
+              await servicesRepoMockAdmin.update(item.id, { active: false });
+              queryClient.invalidateQueries({ queryKey: ['admin-services'] });
+              queryClient.invalidateQueries({ queryKey: ['services'] });
+            } catch (error) {
+              console.error('Error deactivating service:', error);
+              Alert.alert('Erro', 'Erro ao desativar serviço');
+            }
           },
         },
       ]
     );
   };
 
-  const handleRestoreSeed = () => {
-    Alert.alert(
-      'Restaurar Serviços',
-      'Isso irá substituir todos os serviços atuais pelos itens padrão. Continuar?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Restaurar',
-          style: 'destructive',
-          onPress: async () => {
-            await saveServiceItems(SEED_SERVICES);
-          },
-        },
-      ]
-    );
-  };
 
-  const filteredItems = serviceItems.filter(item => 
+
+  const filteredItems = (services || []).filter(item => 
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
+    (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+  
+  const addVariant = () => {
+    const newVariant: ServiceVariant = {
+      id: `variant_${Date.now()}`,
+      name: '',
+      price: 0,
+    };
+    setVariants([...variants, newVariant]);
+  };
+  
+  const updateVariant = (index: number, field: keyof ServiceVariant, value: string | number) => {
+    const updated = [...variants];
+    updated[index] = { ...updated[index], [field]: value };
+    setVariants(updated);
+  };
+  
+  const removeVariant = (index: number) => {
+    setVariants(variants.filter((_, i) => i !== index));
+  };
 
-  const renderServiceItem = (item: ServiceItem) => (
-    <View key={item.id} style={styles.serviceItem}>
+  const renderServiceItem = (item: Service) => (
+    <Card key={item.id} style={styles.serviceItem}>
       <View style={styles.itemHeader}>
         <View style={styles.itemInfo}>
           <Text style={styles.itemName}>{item.name}</Text>
-          <Text style={styles.itemCategory}>{item.category}</Text>
+          <Text style={[styles.itemStatus, { color: item.active ? '#10b981' : '#ef4444' }]}>
+            {item.active ? 'Ativo' : 'Inativo'}
+          </Text>
         </View>
         <View style={styles.itemActions}>
           <Switch
-            value={item.isAvailable}
-            onValueChange={() => handleToggleAvailability(item)}
+            value={item.active || false}
+            onValueChange={() => handleToggleActive(item)}
             trackColor={{ false: '#e5e7eb', true: '#10b981' }}
-            thumbColor={item.isAvailable ? '#ffffff' : '#f3f4f6'}
+            thumbColor={item.active ? '#ffffff' : '#f3f4f6'}
           />
         </View>
       </View>
@@ -259,38 +185,49 @@ export default function AdminServicesScreen() {
       
       <View style={styles.itemDetails}>
         <Text style={styles.itemPrice}>
-          R$ {item.price.toFixed(2)} {item.unit}
+          {item.variants && item.variants.length > 0 
+            ? `A partir de R$ ${Math.min(...item.variants.map(v => v.price)).toFixed(2)}`
+            : item.price ? `R$ ${item.price.toFixed(2)}` : 'Consultar'
+          }
         </Text>
-        <Text style={styles.itemLeadTime}>{item.leadTime}</Text>
+        {item.durationMin && (
+          <Text style={styles.itemLeadTime}>
+            {item.durationMin < 60 ? `${item.durationMin} min` : 
+             `${Math.floor(item.durationMin / 60)}h${item.durationMin % 60 ? ` ${item.durationMin % 60}min` : ''}`}
+          </Text>
+        )}
       </View>
       
+      {item.variants && item.variants.length > 0 && (
+        <View style={styles.variantsInfo}>
+          <Text style={styles.variantsLabel}>Variantes:</Text>
+          {item.variants.map((variant, index) => (
+            <Text key={variant.id} style={styles.variantText}>
+              • {variant.name} - R$ {variant.price.toFixed(2)}
+            </Text>
+          ))}
+        </View>
+      )}
+      
       <View style={styles.itemButtons}>
-        <TouchableOpacity
-          style={styles.editButton}
+        <Button
+          title="Editar"
           onPress={() => handleEdit(item)}
-        >
-          <Edit3 size={16} color="#3b82f6" />
-          <Text style={styles.editButtonText}>Editar</Text>
-        </TouchableOpacity>
+          variant="outline"
+          style={styles.editButton}
+        />
         
-        <TouchableOpacity
-          style={styles.deleteButton}
+        <Button
+          title="Desativar"
           onPress={() => handleDelete(item)}
-        >
-          <Trash2 size={16} color="#ef4444" />
-          <Text style={styles.deleteButtonText}>Excluir</Text>
-        </TouchableOpacity>
+          variant="danger"
+          style={styles.deleteButton}
+        />
       </View>
-    </View>
+    </Card>
   );
 
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Carregando serviços...</Text>
-      </View>
-    );
-  }
+
 
   return (
     <View style={styles.container}>
@@ -310,24 +247,28 @@ export default function AdminServicesScreen() {
         </View>
         
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.addButton} onPress={handleAddNew}>
-            <Plus size={20} color="white" />
-            <Text style={styles.addButtonText}>Novo</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.restoreButton} onPress={handleRestoreSeed}>
-            <RotateCcw size={20} color="#6b7280" />
-          </TouchableOpacity>
+          <Button
+            title="Novo Serviço"
+            onPress={handleAddNew}
+            variant="primary"
+            style={styles.addButton}
+          />
         </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {filteredItems.length === 0 ? (
-          <Text style={styles.emptyText}>
-            {searchQuery ? 'Nenhum serviço encontrado' : 'Nenhum serviço cadastrado'}
-          </Text>
+        {isLoading ? (
+          <SkeletonItemList count={6} />
+        ) : filteredItems.length === 0 ? (
+          <EmptyState
+            title={searchQuery ? 'Nenhum serviço encontrado' : 'Nenhum serviço cadastrado'}
+            subtitle={searchQuery ? 'Tente uma busca diferente' : 'Adicione o primeiro serviço'}
+            icon={<Plus size={48} color="#6b7280" />}
+          />
         ) : (
-          filteredItems.map(renderServiceItem)
+          <View style={styles.servicesList}>
+            {filteredItems.map(renderServiceItem)}
+          </View>
         )}
       </ScrollView>
 
@@ -358,15 +299,7 @@ export default function AdminServicesScreen() {
               />
             </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Categoria</Text>
-              <TextInput
-                style={styles.formInput}
-                value={formData.category || ''}
-                onChangeText={(text) => setFormData({ ...formData, category: text })}
-                placeholder="Categoria"
-              />
-            </View>
+
 
             <View style={styles.formGroup}>
               <Text style={styles.formLabel}>Descrição *</Text>
@@ -382,7 +315,7 @@ export default function AdminServicesScreen() {
 
             <View style={styles.formRow}>
               <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                <Text style={styles.formLabel}>Preço (R$) *</Text>
+                <Text style={styles.formLabel}>Preço Base (R$)</Text>
                 <TextInput
                   style={styles.formInput}
                   value={formData.price?.toString() || ''}
@@ -393,55 +326,100 @@ export default function AdminServicesScreen() {
               </View>
               
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-                <Text style={styles.formLabel}>Unidade</Text>
+                <Text style={styles.formLabel}>Duração (min)</Text>
                 <TextInput
                   style={styles.formInput}
-                  value={formData.unit || ''}
-                  onChangeText={(text) => setFormData({ ...formData, unit: text })}
-                  placeholder="por item"
+                  value={formData.durationMin?.toString() || ''}
+                  onChangeText={(text) => setFormData({ ...formData, durationMin: parseInt(text) || 0 })}
+                  placeholder="60"
+                  keyboardType="numeric"
                 />
               </View>
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>Prazo de Entrega</Text>
+              <Text style={styles.formLabel}>Ordem de Exibição</Text>
               <TextInput
                 style={styles.formInput}
-                value={formData.leadTime || ''}
-                onChangeText={(text) => setFormData({ ...formData, leadTime: text })}
-                placeholder="1-2 horas"
+                value={formData.order?.toString() || ''}
+                onChangeText={(text) => setFormData({ ...formData, order: parseInt(text) || 0 })}
+                placeholder="1"
+                keyboardType="numeric"
               />
             </View>
-
+            
             <View style={styles.formGroup}>
-              <Text style={styles.formLabel}>URL da Imagem</Text>
-              <TextInput
-                style={styles.formInput}
-                value={formData.imageUrl || ''}
-                onChangeText={(text) => setFormData({ ...formData, imageUrl: text })}
-                placeholder="https://..."
-              />
+              <View style={styles.variantsHeader}>
+                <Text style={styles.formLabel}>Variantes do Serviço</Text>
+                <Button
+                  title="Adicionar Variante"
+                  onPress={addVariant}
+                  variant="outline"
+                  style={styles.addVariantButton}
+                />
+              </View>
+              
+              {variants.map((variant, index) => (
+                <View key={variant.id} style={styles.variantForm}>
+                  <View style={styles.variantRow}>
+                    <TextInput
+                      style={[styles.formInput, { flex: 1, marginRight: 8 }]}
+                      value={variant.name}
+                      onChangeText={(text) => updateVariant(index, 'name', text)}
+                      placeholder="Nome da variante"
+                    />
+                    <TextInput
+                      style={[styles.formInput, { flex: 1, marginLeft: 8 }]}
+                      value={variant.price.toString()}
+                      onChangeText={(text) => updateVariant(index, 'price', parseFloat(text) || 0)}
+                      placeholder="Preço"
+                      keyboardType="numeric"
+                    />
+                    <TouchableOpacity
+                      onPress={() => removeVariant(index)}
+                      style={styles.removeVariantButton}
+                    >
+                      <X size={16} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
             </View>
 
             <View style={styles.switchGroup}>
+              <Text style={styles.formLabel}>Ativo</Text>
+              <Switch
+                value={formData.active ?? true}
+                onValueChange={(value) => setFormData({ ...formData, active: value })}
+                trackColor={{ false: '#e5e7eb', true: '#10b981' }}
+                thumbColor={formData.active ? '#ffffff' : '#f3f4f6'}
+              />
+            </View>
+            
+            <View style={styles.switchGroup}>
               <Text style={styles.formLabel}>Disponível</Text>
               <Switch
-                value={formData.isAvailable ?? true}
-                onValueChange={(value) => setFormData({ ...formData, isAvailable: value })}
+                value={formData.available ?? true}
+                onValueChange={(value) => setFormData({ ...formData, available: value })}
                 trackColor={{ false: '#e5e7eb', true: '#10b981' }}
-                thumbColor={formData.isAvailable ? '#ffffff' : '#f3f4f6'}
+                thumbColor={formData.available ? '#ffffff' : '#f3f4f6'}
               />
             </View>
           </ScrollView>
 
           <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={styles.saveButton}
+            <Button
+              title="Cancelar"
+              onPress={() => setShowModal(false)}
+              variant="outline"
+              style={styles.cancelButton}
+            />
+            <Button
+              title="Salvar"
               onPress={handleSave}
-            >
-              <Save size={20} color="white" />
-              <Text style={styles.saveButtonText}>Salvar</Text>
-            </TouchableOpacity>
+              variant="primary"
+              style={styles.saveButton}
+            />
           </View>
         </View>
       </Modal>
@@ -692,5 +670,56 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '500',
+  },
+  itemStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  servicesList: {
+    gap: 16,
+  },
+  variantsInfo: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+  },
+  variantsLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  variantText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginLeft: 8,
+  },
+  variantsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  addVariantButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  variantForm: {
+    marginBottom: 8,
+  },
+  variantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  removeVariantButton: {
+    padding: 8,
+    borderRadius: 4,
+    backgroundColor: '#fef2f2',
+  },
+  cancelButton: {
+    flex: 1,
+    marginRight: 8,
   },
 });

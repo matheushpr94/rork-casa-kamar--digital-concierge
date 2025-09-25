@@ -20,14 +20,16 @@ const requests: ServiceRequest[] = [
 ];
 
 export const requestsRepoMock: IRequestsRepo = {
-  async create(serviceId, { userId, note }) {
+  async create(serviceId, { userId, note, variantId, price }) {
     const request: ServiceRequest = { 
       id: String(Date.now()), 
       serviceId, 
       userId, 
       note, 
       status: "pending", 
-      createdAt: Date.now() 
+      createdAt: Date.now(),
+      variantId,
+      price
     };
     requests.unshift(request); 
     return request;
