@@ -72,10 +72,10 @@ export const requestsRepoFirebase: IRequestsRepo = {
     
     try {
       const requestsRef = collection(db, 'requests');
+      // Temporary: Use only where clause, sort client-side to avoid index requirement
       const q = query(
         requestsRef,
-        where('userId', '==', userId),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', userId)
       );
       
       const snapshot = await getDocs(q);
@@ -93,7 +93,7 @@ export const requestsRepoFirebase: IRequestsRepo = {
           createdAt: data.createdAt?.toMillis?.() || Date.now(),
           updatedAt: data.updatedAt?.toMillis?.() || Date.now()
         } as ServiceRequest;
-      });
+      }).sort((a, b) => b.createdAt - a.createdAt); // Client-side sort by createdAt desc
       
       if (__DEV__) {
         console.log(`[Firebase Requests] listByUser(${userId}) fetched ${requests.length}`);
