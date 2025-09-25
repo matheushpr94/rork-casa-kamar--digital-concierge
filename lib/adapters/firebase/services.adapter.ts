@@ -35,6 +35,7 @@ export const servicesRepoFirebase: IServicesRepo = {
             normalizedVariants = data.variants.map((variant: any) => ({
               id: variant.id || variant.name || variant.label,
               label: variant.label || variant.name,
+              name: variant.name || variant.label,  // Ensure both fields exist
               price: variant.price || 0
             }));
           } else if (typeof data.variants === 'object') {
@@ -42,6 +43,7 @@ export const servicesRepoFirebase: IServicesRepo = {
             normalizedVariants = Object.entries(data.variants).map(([key, value]: [string, any]) => ({
               id: key,
               label: value.label || key,
+              name: value.name || value.label || key,  // Ensure both fields exist
               price: value.price || 0
             }));
           }

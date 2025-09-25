@@ -26,6 +26,7 @@ import { Chip } from '@/components/ui/Chip';
 import { SkeletonItemList } from '@/components/ui/SkeletonItemList';
 import { EmptyState } from '@/components/ui/EmptyState';
 import type { Service, ServiceVariant } from '@/lib/ports/services.port';
+import { formatCurrencyBRL } from '@/lib/utils/currency';
 import * as Haptics from 'expo-haptics';
 
 
@@ -146,8 +147,8 @@ export default function ServicesScreen() {
                     <Text style={styles.serviceName}>{service.name}</Text>
                     <Text style={styles.servicePrice}>
                       {service.variants && service.variants.length > 0 
-                        ? `A partir de R$ ${Math.min(...service.variants.map((v: ServiceVariant) => v.price)).toFixed(2)}`
-                        : service.price ? `R$ ${service.price.toFixed(2)}` : 'Consultar'}
+                        ? `A partir de ${formatCurrencyBRL(Math.min(...service.variants.map((v: ServiceVariant) => v.price)))}`
+                        : service.price ? formatCurrencyBRL(service.price) : 'Consultar'}
                     </Text>
                     {service.durationMin && (
                       <View style={styles.leadTimeContainer}>
@@ -201,8 +202,8 @@ export default function ServicesScreen() {
                 <Text style={styles.serviceInfoName}>{selectedService.name}</Text>
                 <Text style={styles.serviceInfoPrice}>
                   {selectedVariant 
-                    ? `R$ ${selectedVariant.price.toFixed(2)}` 
-                    : selectedService.price ? `R$ ${selectedService.price.toFixed(2)}` : 'Consultar'}
+                    ? formatCurrencyBRL(selectedVariant.price) 
+                    : selectedService.price ? formatCurrencyBRL(selectedService.price) : 'Consultar'}
                 </Text>
                 <Text style={styles.serviceInfoDescription}>
                   {selectedService.description}
@@ -215,7 +216,7 @@ export default function ServicesScreen() {
                       {selectedService.variants.map((variant) => (
                         <Chip
                           key={variant.id}
-                          label={`${variant.name} - R$ ${variant.price.toFixed(2)}`}
+                          label={`${variant.label ?? variant.name ?? 'Opção'} - ${formatCurrencyBRL(variant.price)}`}
                           selected={selectedVariant?.id === variant.id}
                           onPress={() => setSelectedVariant(variant)}
                           style={styles.variantChip}

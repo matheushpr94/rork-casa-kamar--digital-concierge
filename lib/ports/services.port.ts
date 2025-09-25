@@ -1,6 +1,7 @@
 export type ServiceVariant = {
   id: string;
-  label: string;
+  label?: string;
+  name?: string;  // For backward compatibility
   price: number;
 };
 
